@@ -24,11 +24,11 @@ public struct module_c {
     public var name: String = ""
     public var icon: NSImage?
     
-    var defaultState: Bool = false
-    var defaultWidget: widget_t = .unknown
-    var availableWidgets: [widget_t] = []
+    public var defaultState: Bool = false
+    internal var defaultWidget: widget_t = .unknown
+    internal var availableWidgets: [widget_t] = []
     
-    var widgetsConfig: NSDictionary = NSDictionary()
+    internal var widgetsConfig: NSDictionary = NSDictionary()
     
     init(in path: String) {
         let dict: NSDictionary = NSDictionary(contentsOfFile: path)!
@@ -38,6 +38,12 @@ public struct module_c {
         }
         if let state = dict["State"] as? Bool {
             self.defaultState = state
+        }
+        if let symbol = dict["Symbol"] as? String, #available(macOS 11.0, *) {
+            self.icon = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        }
+        if self.icon == nil, #available(macOS 11.0, *), let symbol = dict["AlternativeSymbol"] as? String {
+            self.icon = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
         }
         
         if let widgetsDict = dict["Widgets"] as? NSDictionary {
@@ -70,22 +76,48 @@ open class Module: Module_p {
     public var available: Bool = false
     public var enabled: Bool = false
     
-    public var widgets: [Widget] = []
+    public var menuBar: MenuBar
     public var settings: Settings_p? = nil
+    public let portal: Portal_p?
+    
+    public var name: String {
+        config.name
+    }
+    public var combinedPosition: Int {
+        get {
+            Store.shared.int(key: "\(self.name)_position", defaultValue: 0)
+        }
+        set {
+            Store.shared.set(key: "\(self.name)_position", value: newValue)
+        }
+    }
     
     private var settingsView: Settings_v? = nil
     private var popup: PopupWindow? = nil
     private var popupView: Popup_p? = nil
+    private var notificationsView: NotificationsWrapper? = nil
     
     private let log: NextLog
     private var readers: [Reader_p] = []
     
-    public init(popup: Popup_p? = nil, settings: Settings_v? = nil) {
+    private var pauseState: Bool {
+        get {
+            Store.shared.bool(key: "pause", defaultValue: false)
+        }
+        set {
+            Store.shared.set(key: "pause", value: newValue)
+        }
+    }
+    
+    public init(popup: Popup_p? = nil, settings: Settings_v? = nil, portal: Portal_p? = nil, notifications: NotificationsWrapper? = nil) {
+        self.portal = portal
         self.config = module_c(in: Bundle(for: type(of: self)).path(forResource: "config", ofType: "plist")!)
         
         self.log = NextLog.shared.copy(category: self.config.name)
         self.settingsView = settings
         self.popupView = popup
+        self.notificationsView = notifications
+        self.menuBar = MenuBar(moduleName: self.config.name)
         self.available = self.isAvailable()
         self.enabled = Store.shared.bool(key: "\(self.config.name)_state", defaultValue: self.config.defaultState)
         
@@ -98,6 +130,8 @@ open class Module: Module_p {
             }
             
             return
+        } else if self.pauseState {
+            self.disable()
         }
         
         NotificationCenter.default.addObserver(self, selector: #selector(listenForMouseDownInSettings), name: .clickInSettings, object: nil)
@@ -107,15 +141,20 @@ open class Module: Module_p {
         
         // swiftlint:disable empty_count
         if self.config.widgetsConfig.count != 0 {
+            // swiftlint:enable empty_count
             self.initWidgets()
         } else {
             debug("Module started without widget", log: self.log)
         }
         
-        self.settings = Settings(config: &self.config, widgets: &self.widgets, enabled: self.enabled, moduleSettings: self.settingsView)
-        self.settings?.toggleCallback = { [weak self] in
-            self?.toggleEnabled()
-        }
+        self.settings = Settings(
+            config: &self.config,
+            widgets: &self.menuBar.widgets,
+            enabled: self.enabled,
+            moduleSettings: self.settingsView,
+            popupSettings: self.popupView,
+            notificationsSettings: self.notificationsView
+        )
         
         self.popup = PopupWindow(title: self.config.name, view: self.popupView, visibilityCallback: self.visibilityCallback)
     }
@@ -126,14 +165,12 @@ open class Module: Module_p {
     
     // load function which call when app start
     public func mount() {
-        guard self.enabled else {
-            return
-        }
-        
+        guard self.enabled else { return }
         self.readers.forEach { (reader: Reader_p) in
             reader.initStoreValues(title: self.config.name)
             reader.start()
         }
+        self.menuBar.enable()
     }
     
     // disable module
@@ -149,7 +186,7 @@ open class Module: Module_p {
             $0.stop()
             $0.terminate()
         }
-        self.widgets.forEach{ $0.disable() }
+        self.menuBar.disable()
         debug("Module terminated", log: self.log)
     }
     
@@ -166,7 +203,8 @@ open class Module: Module_p {
             reader.initStoreValues(title: self.config.name)
             reader.start()
         }
-        self.widgets.forEach{ $0.enable() }
+        self.menuBar.enable()
+        self.settings?.setState(self.enabled)
         debug("Module enabled", log: self.log)
     }
     
@@ -175,32 +213,18 @@ open class Module: Module_p {
         guard self.available else { return }
         
         self.enabled = false
-        Store.shared.set(key: "\(self.config.name)_state", value: false)
+        if !self.pauseState { // omit saving the disable state when toggle by pause, need for resume state restoration
+            Store.shared.set(key: "\(self.config.name)_state", value: false)
+        }
         self.readers.forEach{ $0.stop() }
-        self.widgets.forEach{ $0.disable() }
+        self.menuBar.disable()
+        self.settings?.setState(self.enabled)
         self.popup?.setIsVisible(false)
         debug("Module disabled", log: self.log)
     }
     
-    // toggle module state
-    private func toggleEnabled() {
-        if self.enabled {
-            self.disable()
-        } else {
-            self.enable()
-        }
-    }
-    
-    // add reader to module. If module is enabled will fire a read function and start a reader
-    public func addReader(_ reader: Reader_p) {
-        self.readers.append(reader)
-        debug("\(reader.self) was added", log: self.log)
-    }
-    
-    // handler for reader, calls when main reader is ready, and return first value
-    public func readyHandler() {
-        self.widgets.forEach{ $0.enable() }
-        debug("Reader report readiness", log: self.log)
+    public func setReaders(_ list: [Reader_p?]) {
+        self.readers = list.filter({ $0 != nil }).map({ $0! as Reader_p })
     }
     
     // replace a popup view
@@ -223,7 +247,7 @@ open class Module: Module_p {
                 config: self.config.widgetsConfig,
                 defaultWidget: self.config.defaultWidget
             ) {
-                self.widgets.append(widget)
+                self.menuBar.append(widget)
             }
         }
     }
@@ -256,7 +280,13 @@ open class Module: Module_p {
         let openedWindows = NSApplication.shared.windows.filter{ $0 is NSPanel }
         openedWindows.forEach{ $0.setIsVisible(false) }
         
-        if popup.occlusionState.rawValue == 8192 {
+        var reopen: Bool = false
+        if let widget = notification.userInfo?["widget"] as? widget_t {
+            reopen = popup.openedBy != nil && popup.openedBy != widget
+            popup.openedBy = widget
+        }
+        
+        if popup.occlusionState.rawValue == 8192 || reopen {
             NSApplication.shared.activate(ignoringOtherApps: true)
             
             popup.contentView?.invalidateIntrinsicContentSize()
@@ -274,6 +304,7 @@ open class Module: Module_p {
             popup.setIsVisible(true)
         } else {
             popup.locked = false
+            popup.openedBy = nil
             popup.setIsVisible(false)
         }
     }
@@ -287,7 +318,18 @@ open class Module: Module_p {
                     } else if !state && self.enabled {
                         self.disable()
                     }
+                } else {
+                    if self.enabled {
+                        self.disable()
+                    } else {
+                        self.enable()
+                    }
                 }
+            }
+            
+            if self.pauseState == true {
+                self.pauseState = false
+                NotificationCenter.default.post(name: .pause, object: nil, userInfo: ["state": false])
             }
         }
     }
@@ -302,7 +344,7 @@ open class Module: Module_p {
         guard let name = notification.userInfo?["module"] as? String, name == self.config.name else {
             return
         }
-        let isEmpty = self.widgets.filter({ $0.isActive }).isEmpty
+        let isEmpty = self.menuBar.widgets.filter({ $0.isActive }).isEmpty
         var state = self.enabled
         
         if isEmpty && self.enabled {

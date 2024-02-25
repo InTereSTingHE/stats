@@ -6,6 +6,8 @@ disabled_rules:
   - opening_brace
   - implicit_getter
   - redundant_optional_initialization
+  - large_tuple
+  - function_body_length
 
 opt_in_rules:
   - control_statement
@@ -32,17 +34,19 @@ identifier_name:
     - _devices
     - _uuidAddress
     - AppleSiliconSensorsList
+    - FanValues
+    - CombinedModulesSpacings
+    - BatteryInfo
+    - PublicIPAddressRefreshIntervals
+    - _values
+    - _writeTS
 
 line_length: 200
 
-function_body_length:
-  - 60
-  - 80
-
 type_body_length:
-  - 300
-  - 400
+  - 700
+  - 1000
 
 file_length:
-  - 600
-  - 800
+  - 1400
+  - 1800

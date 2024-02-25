@@ -13,13 +13,25 @@ import Cocoa
 
 public protocol Popup_p: NSView {
     var sizeCallback: ((NSSize) -> Void)? { get set }
+    func settings() -> NSView?
+    
+    func appear()
+    func disappear()
 }
 
-internal class PopupWindow: NSWindow, NSWindowDelegate {
+open class PopupWrapper: NSStackView, Popup_p {
+    open var sizeCallback: ((NSSize) -> Void)? = nil
+    open func settings() -> NSView? { return nil }
+    open func appear() {}
+    open func disappear() {}
+}
+
+public class PopupWindow: NSWindow, NSWindowDelegate {
     private let viewController: PopupViewController = PopupViewController()
     internal var locked: Bool = false
+    internal var openedBy: widget_t? = nil
     
-    init(title: String, view: Popup_p?, visibilityCallback: @escaping (_ state: Bool) -> Void) {
+    public init(title: String, view: Popup_p?, visibilityCallback: @escaping (_ state: Bool) -> Void) {
         self.viewController.setup(title: title, view: view)
         
         super.init(
@@ -49,12 +61,12 @@ internal class PopupWindow: NSWindow, NSWindowDelegate {
         self.delegate = self
     }
     
-    func windowWillMove(_ notification: Notification) {
+    public func windowWillMove(_ notification: Notification) {
         self.viewController.setCloseButton(true)
         self.locked = true
     }
     
-    func windowDidResignKey(_ notification: Notification) {
+    public func windowDidResignKey(_ notification: Notification) {
         if self.locked {
             return
         }
@@ -86,10 +98,6 @@ internal class PopupViewController: NSViewController {
         self.view = self.popup
     }
     
-    override func viewDidLoad() {
-        super.viewDidLoad()
-    }
-    
     override func viewWillAppear() {
         super.viewWillAppear()
         
@@ -117,6 +125,10 @@ internal class PopupViewController: NSViewController {
 
 internal class PopupView: NSView {
     private var title: String? = nil
+    private var view: Popup_p? = nil
+    
+    private var foreground: NSVisualEffectView
+    private var background: NSView
     
     private let header: HeaderView
     private let body: NSScrollView
@@ -124,6 +136,8 @@ internal class PopupView: NSView {
     override var intrinsicContentSize: CGSize {
         return CGSize(width: self.frame.width, height: self.frame.height)
     }
+    private var windowHeight: CGFloat?
+    private var containerHeight: CGFloat?
     
     override init(frame: NSRect) {
         self.header = HeaderView(frame: NSRect(
@@ -138,11 +152,22 @@ internal class PopupView: NSView {
             width: frame.width - Constants.Popup.margins*2,
             height: frame.height - self.header.frame.height - Constants.Popup.margins*2
         ))
+        self.windowHeight = NSScreen.main?.visibleFrame.height
+        self.containerHeight = self.body.documentView?.frame.height
         
-        super.init(frame: CGRect(x: frame.origin.x, y: frame.origin.y, width: frame.width, height: frame.height))
+        self.foreground = NSVisualEffectView(frame: frame)
+        self.foreground.material = .titlebar
+        self.foreground.blendingMode = .behindWindow
+        self.foreground.state = .active
+        self.foreground.wantsLayer = true
+        self.foreground.layer?.backgroundColor = NSColor.red.cgColor
+        self.foreground.layer?.cornerRadius = 6
         
-        self.wantsLayer = true
-        self.layer?.cornerRadius = 3
+        self.background = NSView(frame: frame)
+        self.background.wantsLayer = true
+        self.foreground.addSubview(self.background)
+        
+        super.init(frame: frame)
         
         self.body.drawsBackground = false
         self.body.translatesAutoresizingMaskIntoConstraints = true
@@ -152,6 +177,7 @@ internal class PopupView: NSView {
         self.body.autohidesScrollers = true
         self.body.horizontalScrollElasticity = .none
         
+        self.addSubview(self.foreground, positioned: .below, relativeTo: .none)
         self.addSubview(self.header)
         self.addSubview(self.body)
     }
@@ -161,48 +187,41 @@ internal class PopupView: NSView {
     }
     
     override func updateLayer() {
-        self.layer!.backgroundColor = self.isDarkMode ? NSColor.windowBackgroundColor.cgColor : NSColor.white.cgColor
+        self.background.layer?.backgroundColor = self.isDarkMode ? .clear : NSColor.white.cgColor
     }
     
     public func setView(_ view: Popup_p?) {
-        let width: CGFloat = (view?.frame.width ?? Constants.Popup.width) + (Constants.Popup.margins*2)
-        let height: CGFloat = (view?.frame.height ?? 0) + Constants.Popup.headerHeight + (Constants.Popup.margins*2)
+        self.view = view
         
-        self.setFrameSize(NSSize(width: width, height: height))
-        self.header.setFrameOrigin(NSPoint(x: 0, y: height - Constants.Popup.headerHeight))
-        self.body.setFrameSize(NSSize(width: (view?.frame.width ?? Constants.Popup.width), height: (view?.frame.height ?? 0)))
+        var isScrollVisible: Bool = false
+        var size: NSSize = NSSize(
+            width: (view?.frame.width ?? Constants.Popup.width) + (Constants.Popup.margins*2),
+            height: (view?.frame.height ?? 0) + Constants.Popup.headerHeight + (Constants.Popup.margins*2)
+        )
+        
+        self.windowHeight = NSScreen.main?.visibleFrame.height // for height recalculate when appear/disappear
+        self.containerHeight = self.body.documentView?.frame.height // for scroll diff calculation
+        if let screenHeight = NSScreen.main?.visibleFrame.height, size.height > screenHeight {
+            size.height = screenHeight - Constants.Widget.height
+            isScrollVisible = true
+        }
+        if let screenWidth = NSScreen.main?.visibleFrame.width, size.width > screenWidth {
+            size.width = screenWidth
+        }
+        
+        self.setFrameSize(size)
+        self.foreground.setFrameSize(size)
+        self.background.setFrameSize(size)
+        self.body.setFrameSize(NSSize(
+            width: size.width - (Constants.Popup.margins*2) + (isScrollVisible ? 20 : 0),
+            height: size.height - Constants.Popup.headerHeight - (Constants.Popup.margins*2)
+        ))
+        self.header.setFrameOrigin(NSPoint(x: 0, y: size.height - Constants.Popup.headerHeight))
         
         if let view = view {
             self.body.documentView = view
-            
             view.sizeCallback = { [weak self] size in
-                var isScrollVisible: Bool = false
-                var windowSize: NSSize = NSSize(
-                    width: size.width + (Constants.Popup.margins*2),
-                    height: size.height + Constants.Popup.headerHeight + (Constants.Popup.margins*2)
-                )
-                
-                if let screenHeight = NSScreen.main?.frame.height, windowSize.height > screenHeight {
-                    windowSize.height = screenHeight - Constants.Widget.height - 6
-                    isScrollVisible = true
-                }
-                if let screenWidth = NSScreen.main?.frame.width, windowSize.width > screenWidth {
-                    windowSize.width = screenWidth
-                }
-                
-                self?.window?.setContentSize(windowSize)
-                self?.body.setFrameSize(NSSize(
-                    width: windowSize.width - (Constants.Popup.margins*2) + (isScrollVisible ? 20 : 0),
-                    height: windowSize.height - Constants.Popup.headerHeight - (Constants.Popup.margins*2)
-                ))
-                self?.header.setFrameOrigin(NSPoint(
-                    x: self?.header.frame.origin.x ?? 0,
-                    y: (self?.body.frame.height ?? 0) + (Constants.Popup.margins*2)
-                ))
-                
-                if let documentView = self?.body.documentView {
-                    documentView.scroll(NSPoint(x: 0, y: documentView.bounds.size.height))
-                }
+                self?.recalculateHeight(size)
             }
         }
     }
@@ -219,8 +238,62 @@ internal class PopupView: NSView {
     internal func appear() {
         self.display()
         self.body.subviews.first?.display()
+        
+        if let screenHeight = NSScreen.main?.visibleFrame.height, let size = self.body.documentView?.frame.size {
+            if screenHeight != self.windowHeight {
+                self.recalculateHeight(size)
+            }
+        }
+        
+        if let documentView = self.body.documentView {
+            documentView.scroll(NSPoint(x: 0, y: documentView.bounds.size.height))
+        }
+        
+        self.view?.appear()
     }
-    internal func disappear() {}
+    internal func disappear() {
+        self.header.setCloseButton(false)
+        self.view?.disappear()
+    }
+    
+    private func recalculateHeight(_ size: NSSize) {
+        var isScrollVisible: Bool = false
+        var windowSize: NSSize = NSSize(
+            width: size.width + (Constants.Popup.margins*2),
+            height: size.height + Constants.Popup.headerHeight + (Constants.Popup.margins*2)
+        )
+        let h0 = self.containerHeight ?? 0
+        
+        self.windowHeight = NSScreen.main?.visibleFrame.height // for height recalculate when appear/disappear
+        self.containerHeight = self.body.documentView?.frame.height // for scroll diff calculation
+        if let screenHeight = NSScreen.main?.visibleFrame.height, windowSize.height > screenHeight {
+            windowSize.height = screenHeight - Constants.Widget.height
+            isScrollVisible = true
+        }
+        if let screenWidth = NSScreen.main?.visibleFrame.width, windowSize.width > screenWidth {
+            windowSize.width = screenWidth
+        }
+        
+        self.window?.setContentSize(windowSize)
+        self.foreground.setFrameSize(windowSize)
+        self.background.setFrameSize(windowSize)
+        self.body.setFrameSize(NSSize(
+            width: windowSize.width - (Constants.Popup.margins*2) + (isScrollVisible ? 20 : 0),
+            height: windowSize.height - Constants.Popup.headerHeight - (Constants.Popup.margins*2)
+        ))
+        self.header.setFrameOrigin(NSPoint(
+            x: self.header.frame.origin.x,
+            y: self.body.frame.height + (Constants.Popup.margins*2)
+        ))
+        
+        if let documentView = self.body.documentView {
+            let diff = h0 - (self.body.documentView?.frame.height ?? 0)
+            documentView.scroll(NSPoint(
+                x: 0,
+                y: self.body.documentVisibleRect.origin.y - (diff < 0 ? diff : 0)
+            ))
+        }
+    }
 }
 
 internal class HeaderView: NSStackView {
@@ -230,8 +303,11 @@ internal class HeaderView: NSStackView {
     
     private var title: String = ""
     private var isCloseAction: Bool = false
+    private let app: URL?
     
     override init(frame: NSRect) {
+        self.app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.ActivityMonitor")
+        
         super.init(frame: CGRect(x: frame.origin.x, y: frame.origin.y, width: frame.width, height: frame.height))
         
         self.orientation = .horizontal
@@ -245,9 +321,7 @@ internal class HeaderView: NSStackView {
         activity.translatesAutoresizingMaskIntoConstraints = false
         activity.imageScaling = .scaleNone
         activity.image = Bundle(for: type(of: self)).image(forResource: "chart")!
-        if #available(OSX 10.14, *) {
-            activity.contentTintColor = .lightGray
-        }
+        activity.contentTintColor = .lightGray
         activity.isBordered = false
         activity.action = #selector(openActivityMonitor)
         activity.target = self
@@ -275,9 +349,7 @@ internal class HeaderView: NSStackView {
         settings.translatesAutoresizingMaskIntoConstraints = false
         settings.imageScaling = .scaleNone
         settings.image = Bundle(for: type(of: self)).image(forResource: "settings")!
-        if #available(OSX 10.14, *) {
-            settings.contentTintColor = .lightGray
-        }
+        settings.contentTintColor = .lightGray
         settings.isBordered = false
         settings.action = #selector(openSettings)
         settings.target = self
@@ -318,13 +390,8 @@ internal class HeaderView: NSStackView {
     
     @objc func openActivityMonitor(_ sender: Any) {
         self.window?.setIsVisible(false)
-        
-        NSWorkspace.shared.launchApplication(
-            withBundleIdentifier: "com.apple.ActivityMonitor",
-            options: [.default],
-            additionalEventParamDescriptor: nil,
-            launchIdentifier: nil
-        )
+        guard let app = self.app else { return }
+        NSWorkspace.shared.open([], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
     }
     
     @objc func openSettings(_ sender: Any) {

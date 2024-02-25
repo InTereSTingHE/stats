@@ -20,14 +20,14 @@
 "Open Disk settings" = "Открыть настройки диска";
 "Sensors" = "Датчики";
 "Open Sensors settings" = "Открыть настройки датчиков";
-"Fans" = "Вентиляторы";
-"Open Fans settings" = "Открыть настройки вентиляторов";
 "Network" = "Сеть";
 "Open Network settings" = "Открыть настройки сети";
 "Battery" = "Аккумулятор";
 "Open Battery settings" = "Открыть настройки аккумулятора";
 "Bluetooth" = "Bluetooth";
 "Open Bluetooth settings" = "Открыть настройки bluetooth";
+"Clock" = "Часы";
+"Open Clock settings" = "Открыть настройки часов";
 
 // Words
 "Unknown" = "Неизвестно";
@@ -51,21 +51,63 @@
 "Short" = "Короткий";
 "Long" = "Длинный";
 "Statistics" = "Статистика";
-"Max" = "Мин.";
-"Min" = "Макс.";
+"Max" = "Макс.";
+"Min" = "Мин.";
 "Reset" = "Сбросить";
 "Alignment" = "Выравнивание";
 "Left alignment" = "по левому";
 "Center alignment" = "по центру";
 "Right alignment" = "по правому";
 "Dashboard" = "Dashboard";
+"Enabled" = "Включено";
 "Disabled" = "Отключено";
+"Silent" = "Бесшумно";
+"Units" = "Units";
+"Fans" = "Вентиляторы";
+"Scaling" = "Масштабирование";
+"Linear" = "Линейное";
+"Square" = "Квадратное";
+"Cube" = "Кубическое";
+"Logarithmic" = "Логарифмическое";
+"Cores" = "Ядра";
+"Settings" = "Настройки";
+"Name" = "Название";
+"Format" = "Формат";
+"Turn off" = "Выключить";
+"Warning" = "Предупреждение";
+"Critical" = "Критический";
+"Usage" = "Использование";
+
+// Setup
+"Stats Setup" = "Настройки Stats";
+"Previous" = "Назад";
+"Previous page" = "Предыдущая страница";
+"Next" = "Вперёд";
+"Next page" = "Следующая страница";
+"Finish" = "Завершить";
+"Finish setup" = "Завершить настройку";
+"Welcome to Stats" = "Добро пожаловать в Stats";
+"welcome_message" = "Спасибо за использование Stats, бесплатного системного монитора macOS с открытым исходным кодом для системного меню.";
+"Start the application automatically when starting your Mac" = "Запуск приложения автоматически при запуске Mac";
+"Do not start the application automatically when starting your Mac" = "Не запускать приложение автоматически при запуске Mac";
+"Do everything silently in the background (recommended)" = "Делать все тихо в фоновом режиме (рекомендуется)";
+"Check for a new version on startup" = "Проверять наличие новой версии при запуске";
+"Check for a new version every day (once a day)" = "Проверять наличие новой версии каждый день (один раз в день)";
+"Check for a new version every week (once a week)" = "Проверять наличие новой версии каждую неделю (раз в неделю)";
+"Check for a new version every month (once a month)" = "Проверять наличие новой версии каждый месяц (раз в месяц)";
+"Never check for updates (not recommended)" = "Никогда не проверять наличие обновлений (не рекомендуется)";
+"Anonymous telemetry for better development decisions" = "Анонимная телеметрия для принятия лучших решений при разработке";
+"Share anonymous telemetry data" = "Делится анонимными данными телеметрии";
+"Do not share anonymous telemetry data" = "Не передавайте анонимные данные телеметрии";
+"The configuration is completed" = "Настройка завершена";
+"finish_setup_message" = "Все готово! \n Stats — это инструмент с открытым исходным кодом, он бесплатный и всегда будет бесплатным. \n Если вам нравится, вы можете поддержать проект, это всегда ценно!";
 
 // Alerts
 "New version available" = "Доступна новая версия";
 "Click to install the new version of Stats" = "Нажмите, чтобы установить новую версию Stats";
 "Successfully updated" = "Успешно обновлено";
 "Stats was updated to v" = "Stats обновлено до v%0";
+"Reset settings text" = "Все настройки приложения будут сброшены, и приложение будет перезапущено. Вы уверены, что хотите это сделать?";
 
 // Settings
 "Open Activity Monitor" = "Открыть Мониторинг системы";
@@ -74,6 +116,7 @@
 "Close application" = "Закрыть приложение";
 "Open application settings" = "Открыть настройки приложения";
 "Open dashboard" = "Открыть dashboard";
+"No notifications available in this module" = "В этом модуле нет доступных уведомлений";
 
 // Application settings
 "Update application" = "Обновить приложение";
@@ -86,10 +129,21 @@
 "Check for update" = "Проверить обновление";
 "Show icon in dock" = "Показать значок в dock";
 "Start at login" = "Запуск при входе";
+"Build number" = "Номер сборки";
+"Reset settings" = "Сбросить настройки";
+"Pause the Stats" = "Приостановить Stats";
+"Resume the Stats" = "Возобновить Stats";
+"Combined modules" = "Комбинированные модули";
+"Spacing" = "Интервал";
+"Share anonymous telemetry" = "Делится анонимной телеметрией";
 
 // Dashboard
 "Serial number" = "Серийный номер";
 "Uptime" = "Время работы";
+"Number of cores" = "%0 ядер";
+"Number of threads" = "%0 потоков";
+"Number of e-cores" = "%0 производительных ядер";
+"Number of p-cores" = "%0 энергоэффективных ядер";
 
 // Update
 "The latest version of Stats installed" = "Установлена последняя версия";
@@ -111,22 +165,25 @@
 "Display mode" = "Режим отображения";
 "One row" = "Один ряд";
 "Two rows" = "Два ряда";
-"Mini widget" = "Mini";
-"Line chart widget" = "Line chart";
-"Bar chart widget" = "Bar chart";
-"Pie chart widget" = "Pie chart";
-"Network chart widget" = "Network chart";
-"Speed widget" = "Speed";
-"Battery widget" = "Battery";
-"Text widget" = "Text";
-"Memory widget" = "Memory";
+"Mini widget" = "Мини";
+"Line chart widget" = "Линейный график";
+"Bar chart widget" = "Гистограмма";
+"Pie chart widget" = "Круговая диаграмма";
+"Network chart widget" = "Сетевая диаграмма";
+"Speed widget" = "Скорость";
+"Battery widget" = "Батарея";
+"Stack widget" = "Стек";
+"Memory widget" = "Память";
 "Static width" = "Статическая ширина";
 "Tachometer widget" = "Тахометр";
+"State widget" = "Состояние";
 "Show symbols" = "Показать символы";
 "Label widget" = "Этикетка";
 "Number of reads in the chart" = "Количество чтений на графике";
 "Color of download" = "Цвет загрузки";
 "Color of upload" = "Цвет выгрузки";
+"Monospaced font" = "Моноширинный шрифт";
+"Reverse order" = "Обратный порядок";
 
 // Module Kit
 "Open module settings" = "Открыть настройки модуля";
@@ -137,10 +194,19 @@
 "Details" = "Подробности";
 "Top processes" = "Топ процессы";
 "Pictogram" = "Пиктограмма";
+"Module" = "Модуль";
+"Widgets" = "Виджеты";
+"Popup" = "Всплывающее окно";
+"Notifications" = "Уведомления";
+"Merge widgets" = "Объединить виджеты";
+"No available widgets to configure" = "Нет доступных виджетов для настройки";
+"No options to configure for the popup in this module" = "Нет параметров для настройки всплывающего окна в этом модуле";
 
 // Modules
 "Number of top processes" = "Количество процессов";
 "Update interval for top processes" = "Интервал обновления процессов";
+"Notification level" = "Уровень уведомления";
+"Chart color" = "Цвет графика";
 
 // CPU
 "CPU usage" = "Использование процессора";
@@ -158,6 +224,21 @@
 "1 minute" = "1 минута";
 "5 minutes" = "5 минут";
 "15 minutes" = "15 минут";
+"CPU usage threshold" = "Порог использования процессора";
+"CPU usage is" = "Использование процессора %0";
+"Efficiency cores" = "Энергоэффективные ядра";
+"Performance cores" = "Производительные ядра";
+"System color" = "Системный цвет";
+"User color" = "Пользовательский цвет";
+"Idle color" = "Холостой цвет";
+"Cluster grouping" = "Кластерная группировка";
+"Efficiency cores color" = "Цвет энергоэффективных ядер";
+"Performance cores color" = "Цвет производительных ядер";
+"Total load" = "Общая нагрузка";
+"System load" = "Системная нагрузка";
+"User load" = "Пользовательская нагрузка";
+"Efficiency cores load" = "Нагрузка энергоэффективных ядер";
+"Performance cores load" = "Нагрузка производительных ядер";
 
 // GPU
 "GPU to show" = "Активный графический процессор";
@@ -175,6 +256,10 @@
 "Core clock" = "Частота ядра";
 "Memory clock" = "Частота памяти";
 "Utilization" = "Использование";
+"Render utilization" = "Использование render";
+"Tiler utilization" = "Использование tiler";
+"GPU usage threshold" = "Порог использования графического процессора";
+"GPU usage is" = "Использование графического процессора %0";
 
 // RAM
 "Memory usage" = "Нагрузка на память";
@@ -187,6 +272,15 @@
 "Free" = "Свободная";
 "Swap" = "Swap";
 "Split the value (App/Wired/Compressed)" = "Разделить значение (Программы/Зарезервированная/Сжатая)";
+"RAM utilization threshold" = "Порог использования оперативной памяти";
+"RAM utilization is" = "Использование оперативной памяти %0";
+"App color" = "Цвет приложения";
+"Wired color" = "Цвет зарезервированной памяти";
+"Compressed color" = "Цвет сжатой памяти";
+"Free color" = "Цвет свободной памяти";
+"Free memory (less than)" = "Свободная память (менее чем)";
+"Swap size" = "Размер swap";
+"Free RAM is" = "Свободная оперативная память %0";
 
 // Disk
 "Show removable disks" = "Показать съемные диски";
@@ -195,6 +289,11 @@
 "Disk to show" = "Активный диск";
 "Open disk" = "Открытый диск";
 "Switch view" = "Переключить вид";
+"Disk utilization threshold" = "Порог использования диска";
+"Disk utilization is" = "Использование диска %0";
+"Read color" = "Цвет чтения";
+"Write color" = "Цвет записи";
+"Disk usage" = "Использование диска";
 
 // Sensors
 "Temperature unit" = "Единица измерения температуры";
@@ -202,6 +301,20 @@
 "Fahrenheit" = "Фаренгейта";
 "Save the fan speed" = "Сохранить скорость вентилятора";
 "Fan" = "Вентилятор";
+"HID sensors" = "HID датчики";
+"Synchronize fan's control" = "Синхронизировать управление вентиляторами";
+"Current" = "Ток";
+"Energy" = "Энергия";
+"Show unknown sensors" = "Показать неизвестные датчики";
+"Install fan helper" = "Установить помощник для вентилятора";
+"Uninstall fan helper" = "Удалить помощник для вентилятора";
+"Fan value" = "Значение вентилятора";
+"Turn off fan" = "Выключить вентилятор";
+"You are going to turn off the fan. This is not recommended action that can damage your mac, are you sure you want to do that?" = "Вы собираетесь выключить вентилятор. Это не рекомендуемое действие, которое может сломать ваш Mac. Вы уверены, что хотите это сделать?";
+"Sensor threshold" = "Порог датчика";
+"Left fan" = "Левый";
+"Right fan" = "Правый";
+"Fastest fan" = "Самый быстрый";
 
 // Network
 "Uploading" = "Выгрузка";
@@ -224,6 +337,26 @@
 "Processes based" = "Процессы";
 "Reset data usage" = "Сбросить использование данных";
 "VPN mode" = "Режим VPN";
+"Standard" = "Стандарт";
+"Security" = "Шифрование";
+"Channel" = "Канал";
+"Common scale" = "Общий масштаб";
+"Autodetection" = "Автоопределение";
+"Widget activation threshold" = "Порог активации виджета";
+"Internet connection" = "Интернет-соединение";
+"Active state color" = "Цвет активного состояния";
+"Nonactive state color" = "Цвет неактивного состояния";
+"Connectivity host (ICMP)" = "Хост подключения (ICMP)";
+"Leave empty to disable the check" = "Оставьте пустым, чтобы отключить проверку";
+"Transparent pictogram when no activity" = "Прозрачная пиктограмма при отсутствии активности";
+"Connectivity history" = "История подключения";
+"Auto-refresh public IP address" = "Автоматическое обновление IP-адреса";
+"Every hour" = "Каждый час";
+"Every 12 hours" = "Каждые 12 часов";
+"Every 24 hours" = "Каждые 24 часа";
+"Network activity" = "Сетевая активность";
+"Last reset" = "Последний сброс %0 назад";
+"Latency" = "Задержка";
 
 // Battery
 "Level" = "Уровень заряда";
@@ -256,13 +389,24 @@
 "Time format" = "Формат времени";
 "Hide additional information when full" = "Скрыть дополнительную информацию при полном заряде";
 "Last charge" = "Последняя зарядка";
+"Capacity" = "Емкость";
+"current / maximum / designed" = "текущая / максимальная / расчетная";
+"Low power mode" = "Режим пониженного энергопотребления";
+"Percentage inside the icon" = "Процент внутри виджета";
+"Colorize battery" = "Раскрасить батарею";
 
 // Bluetooth
 "Battery to show" = "Активная батарея";
+"No Bluetooth devices are available" = "Нет доступных устройств Bluetooth";
+
+// Clock
+"Time zone" = "Часовой пояс";
+"Local" = "Локальный";
 
 // Colors
 "Based on utilization" = "На основе использования";
 "Based on pressure" = "На основании давления";
+"Based on cluster" = "На основе кластера";
 "System accent" = "Цвет системы";
 "Monochrome accent" = "Монохромный акцент";
 "Clear" = "Прозрачный";

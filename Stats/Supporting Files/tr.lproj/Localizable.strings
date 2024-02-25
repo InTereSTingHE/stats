@@ -20,14 +20,14 @@
 "Open Disk settings" = "Disk ayarlarını aç";
 "Sensors" = "Sensörler";
 "Open Sensors settings" = "Sensör ayarlarını aç";
-"Fans" = "Fanlar";
-"Open Fans settings" = "Fan ayarlarını aç";
 "Network" = "Ağ";
 "Open Network settings" = "Ağ ayarlarını aç";
 "Battery" = "Batarya";
 "Open Battery settings" = "Batarya ayarlarını aç";
 "Bluetooth" = "Bluetooth";
 "Open Bluetooth settings" = "Bluetooth ayarlarını aç";
+"Clock" = "Saat";
+"Open Clock settings" = "Saat ayarlarını aç";
 
 // Words
 "Unknown" = "Bilinmeyen";
@@ -53,19 +53,61 @@
 "Statistics" = "İstatistik";
 "Max" = "Maks";
 "Min" = "Min";
-"Reset" = "Reset";
+"Reset" = "Sıfırla";
 "Alignment" = "Hizalama";
 "Left alignment" = "Sola hizalama";
 "Center alignment" = "Ortaya hizalama";
 "Right alignment" = "Sağa hizalama";
 "Dashboard" = "Panel";
-"Disabled" = "Disabled";
+"Enabled" = "Aktif";
+"Disabled" = "Devre dışı";
+"Silent" = "Sessiz";
+"Units" = "Birimler";
+"Fans" = "Fanlar";
+"Scaling" = "Ölçekli";
+"Linear" = "Doğrusal";
+"Square" = "Karesel";
+"Cube" = "Kübik";
+"Logarithmic" = "Logaritmik";
+"Cores" = "Çekirdekler";
+"Settings" = "Ayarlar";
+"Name" = "Ad";
+"Format" = "Format";
+"Turn off" = "Kapat";
+"Warning" = "Uyarı";
+"Critical" = "Kritik";
+"Usage" = "Kullanım";
+
+// Setup
+"Stats Setup" = "Stats Kurulumu";
+"Previous" = "Önceki";
+"Previous page" = "Önceki sayfa";
+"Next" = "Sonraki";
+"Next page" = "Sonraki sayfa";
+"Finish" = "Bitir";
+"Finish setup" = "Kurulumu bitir";
+"Welcome to Stats" = "Stats'a hoş geldiniz";
+"welcome_message" = "Stats'ı kullandığınız için teşekkürler, Stats MacOS sistem monitörü açık kaynaklı menü bar uygulamasıdır";
+"Start the application automatically when starting your Mac" = "Mac'i açınca otomatik çalıştır";
+"Do not start the application automatically when starting your Mac" = "Mac'i açınca otomatik çalıştırma";
+"Do everything silently in the background (recommended)" = "Her şeyi arkada sessiz yap (önerilir)";
+"Check for a new version on startup" = "Başlangıçta güncellemeleri denetle";
+"Check for a new version every day (once a day)" = "Güncellemeleri günde bir defa denetle";
+"Check for a new version every week (once a week)" = "Güncellemeleri haftada bir defa denetle";
+"Check for a new version every month (once a month)" = "Güncellemeleri ayda bir defa denetle";
+"Never check for updates (not recommended)" = "Güncellemeleri denetleme (önerilmez)";
+"Anonymous telemetry for better development decisions" = "Daha iyi geliştirme kararları için anonim telemetri";
+"Share anonymous telemetry data" = "Anonim telemetri verisi paylaş";
+"Do not share anonymous telemetry data" = "Anonim telemetri verisi paylaşma";
+"The configuration is completed" = "Konfigürasyon tamamlandı";
+"finish_setup_message" = "Her şey hazır! \n Stats açık kaynaklı bir araçtır, Ücretsiz ve hep öyle kalacak. \n Beğendiyseniz projeyi destekleyebilirsiniz, Teşekkürler!";
 
 // Alerts
-"New version available" = "Yeni sürüm indirilebilir";
+"New version available" = "Yeni sürüm mevcut";
 "Click to install the new version of Stats" = "Stats'ın yeni sürümünü indirmek için tıklayın";
 "Successfully updated" = "Başarıyla güncellendi";
 "Stats was updated to v" = "Stats v%0 sürümüne güncellendi";
+"Reset settings text" = "Bütün uygulama ayarları sıfırlanacak ve uygulama yeniden başlatılacak. Bunu yapmak istediğinize emin misiniz?";
 
 // Settings
 "Open Activity Monitor" = "Etkinlik Monitörünü aç";
@@ -73,7 +115,8 @@
 "Support the application" = "Uygulamayı destekleyin";
 "Close application" = "Uygulamayı kapat";
 "Open application settings" = "Uygulama ayarlarını aç";
-"Open dashboard" = "Dashboardu aç";
+"Open dashboard" = "Paneli aç";
+"No notifications available in this module" = "Bu modülde kullanılabilir bildirim yok";
 
 // Application settings
 "Update application" = "Uygulamayı güncelle";
@@ -86,13 +129,24 @@
 "Check for update" = "Güncellemeleri denetle";
 "Show icon in dock" = "Dock'ta göster";
 "Start at login" = "Başlangıçta çalıştır";
+"Build number" = "Sürüm numarası";
+"Reset settings" = "Ayarları sıfırla";
+"Pause the Stats" = "Stats'ı Duraklat";
+"Resume the Stats" = "Stats'ı Sürdür";
+"Combined modules" = "Kombine modüller";
+"Spacing" = "Aralık";
+"Share anonymous telemetry" = "Anonim telemetri paylaş";
 
 // Dashboard
 "Serial number" = "Seri numarası";
 "Uptime" = "Çalışma süresi";
+"Number of cores" = "%0 çekirdek";
+"Number of threads" = "%0 iş parçacığı";
+"Number of e-cores" = "%0 verimlilik çekirdeği";
+"Number of p-cores" = "%0 performans çekirdeği";
 
 // Update
-"The latest version of Stats installed" = "Stats'ın son sürümü yüklendi";
+"The latest version of Stats installed" = "Stats'ın son sürümü kuruldu";
 "Downloading..." = "İndiriliyor...";
 "Current version: " = "Şu anki sürüm:  ";
 "Latest version: " = "Son sürüm:    ";
@@ -118,15 +172,18 @@
 "Network chart widget" = "Ağ pasta grafik widget";
 "Speed widget" = "Hız widget";
 "Battery widget" = "Batarya widget";
-"Text widget" = "Metin widget";
+"Stack widget" = "Stack";
 "Memory widget" = "Bellek widget";
 "Static width" = "Sabit genişlik";
-"Tachometer widget" = "Tachometer";
-"Show symbols" = "Show symbols";
-"Label widget" = "Label";
-"Number of reads in the chart" = "Number of reads in the chart";
-"Color of download" = "Color of download";
-"Color of upload" = "Color of upload";
+"Tachometer widget" = "Takometre";
+"State widget" = "Durum widget'ı";
+"Show symbols" = "Sembolleri göster";
+"Label widget" = "Etiket";
+"Number of reads in the chart" = "Grafikteki okuma sayısı";
+"Color of download" = "İndirme rengi";
+"Color of upload" = "Yükleme rengi";
+"Monospaced font" = "Eşit aralıklı font";
+"Reverse order" = "Ters sıralama";
 
 // Module Kit
 "Open module settings" = "Modül ayarlarını aç";
@@ -137,10 +194,19 @@
 "Details" = "Detaylar";
 "Top processes" = "İşlemler";
 "Pictogram" = "Piktogram";
+"Module" = "Modül";
+"Widgets" = "Widgets";
+"Popup" = "Pop-up";
+"Notifications" = "Bildirimler";
+"Merge widgets" = "Widget'ları birleştir";
+"No available widgets to configure" = "Yapılandırılacak kullanılabilir widget yok";
+"No options to configure for the popup in this module" = "Bu modülde açılır pencere için yapılandırma seçeneği yok";
 
 // Modules
 "Number of top processes" = "İşlem sayısı";
 "Update interval for top processes" = "En yüksek işlemler için güncelleme aralığı";
+"Notification level" = "Bildirim düzeyi";
+"Chart color" = "Grafik rengi";
 
 // CPU
 "CPU usage" = "CPU kullanımı";
@@ -152,12 +218,27 @@
 "Show usage per core" = "Çekirdek başına kullanımı göster";
 "Show hyper-threading cores" = "Hyper-thread çekirdekleri göster";
 "Split the value (System/User)" = "Değeri böl (Sistem/Kullanıcı)";
-"Scheduler limit" = "Scheduler limit";
+"Scheduler limit" = "Zamanlayıcı sınırı";
 "Speed limit" = "Hız limiti";
 "Average load" = "Ortalama yük";
 "1 minute" = "1 dakika";
 "5 minutes" = "5 dakika";
 "15 minutes" = "15 dakika";
+"CPU usage threshold" = "CPU kullanım eşiği";
+"CPU usage is" = "CPU kullanımı %0";
+"Efficiency cores" = "Verimlilik Çekirdeği";
+"Performance cores" = "Performans Çekirdeği";
+"System color" = "Sistem rengi";
+"User color" = "Kullanıcı rengi";
+"Idle color" = "Bekleme rengi";
+"Cluster grouping" = "Küme gruplaması";
+"Efficiency cores color" = "Verimlilik çekirdeklerinin rengi";
+"Performance cores color" = "Performans çekirdeklerinin rengi";
+"Total load" = "Toplam yük";
+"System load" = "Sistem yükü";
+"User load" = "Kullanıcı yükü";
+"Efficiency cores load" = "Verimlilik çekirdekleri yükü";
+"Performance cores load" = "Performans çekirdekleri yükü";
 
 // GPU
 "GPU to show" = "Gösterilecek GPU";
@@ -175,6 +256,10 @@
 "Core clock" = "Çekirdek frekansı";
 "Memory clock" = "Bellek frekansı";
 "Utilization" = "Kullanım";
+"Render utilization" = "İşleme kullanımı";
+"Tiler utilization" = "Tiler kullanımı";
+"GPU usage threshold" = "GPU kullanım eşiği";
+"GPU usage is" = "GPU kullanımı %0";
 
 // RAM
 "Memory usage" = "Ram kullanımı";
@@ -185,8 +270,17 @@
 "Wired" = "Bağlı";
 "Compressed" = "Sıkıştırılmış";
 "Free" = "Serbest";
-"Swap" = "Swap";
+"Swap" = "Takas";
 "Split the value (App/Wired/Compressed)" = "Değeri böl (Uygulama/Bağlı/Sıkıştırılmış)";
+"RAM utilization threshold" = "RAM kullanım eşiği";
+"RAM utilization is" = "RAM Kullanımı %0";
+"App color" = "Uygulama rengi";
+"Wired color" = "Bağlı rengi";
+"Compressed color" = "Sıkıştırılmış rengi";
+"Free color" = "Boşta rengi";
+"Free memory (less than)" = "Boş hafıza (daha az)";
+"Swap size" = "Takas boyutu";
+"Free RAM is" = "Boş RAM %0";
 
 // Disk
 "Show removable disks" = "Çıkarılabilir diskleri göster";
@@ -195,6 +289,11 @@
 "Disk to show" = "Gösterilecek disk";
 "Open disk" = "Açık disk";
 "Switch view" = "Görünümü değiştir";
+"Disk utilization threshold" = "Disk kullanım eşiği";
+"Disk utilization is" = "Disk kullanımı %0";
+"Read color" = "Oku rengi";
+"Write color" = "Yaz rengi";
+"Disk usage" = "Disk kullanımı";
 
 // Sensors
 "Temperature unit" = "Sıcaklık birimi";
@@ -202,6 +301,20 @@
 "Fahrenheit" = "Fahrenhayt";
 "Save the fan speed" = "Fan hızını kaydet";
 "Fan" = "Fan";
+"HID sensors" = "HID sensörleri";
+"Synchronize fan's control" = "Fanın kontrolünü senkronize et";
+"Current" = "Akım";
+"Energy" = "Enerji";
+"Show unknown sensors" = "Bilinmeyen sensörleri göster";
+"Install fan helper" = "Fan yardımcısını kur";
+"Uninstall fan helper" = "Fan yardımcısını kaldır";
+"Fan value" = "Fan değeri";
+"Turn off fan" = "Fanı kapat";
+"You are going to turn off the fan. This is not recommended action that can damage your mac, are you sure you want to do that?" = "Fanı kapatacaksınız. Bu, Mac'inize zarar verebilecek bir eylemdir ve önerilmez. Bunu yapmak istediğinizden emin misiniz?";
+"Sensor threshold" = "Sensör eşiği";
+"Left fan" = "Sol fan";
+"Right fan" = "Sağ fan";
+"Fastest fan" = "En hızlı fan";
 
 // Network
 "Uploading" = "Yükleme";
@@ -223,7 +336,27 @@
 "Interface based" = "Arayüz";
 "Processes based" = "Süreçler";
 "Reset data usage" = "Veri kullanımını sıfırla";
-"VPN mode" = "VPN mode";
+"VPN mode" = "VPN modu";
+"Standard" = "Standart";
+"Security" = "Güvenlik";
+"Channel" = "Kanal";
+"Common scale" = "Ortak ölçek";
+"Autodetection" = "Otomatik algılama";
+"Widget activation threshold" = "Widget aktivasyon eşiği";
+"Internet connection" = "Internet bağlantısı";
+"Active state color" = "Etkin durum rengi";
+"Nonactive state color" = "Etkin olmayan durum rengi";
+"Connectivity host (ICMP)" = "Bağlantı sunucusu (ICMP)";
+"Leave empty to disable the check" = "Kontrolü devre dışı bırakmak için boş bırakın";
+"Transparent pictogram when no activity" = "Aktif olmadığında transparan piktogram";
+"Connectivity history" = "Bağlantı geçmişi";
+"Auto-refresh public IP address" = "Açık IP adresi oto-güncelleme";
+"Every hour" = "Her saat";
+"Every 12 hours" = "Her 12 saat";
+"Every 24 hours" = "Her 24 saat";
+"Network activity" = "Ağ aktivitesi";
+"Last reset" = "Son sıfırlama %0 önce";
+"Latency" = "Latency";
 
 // Battery
 "Level" = "Doluluk";
@@ -256,13 +389,24 @@
 "Time format" = "Zaman formatı";
 "Hide additional information when full" = "Pil dolduğunda ek bilgileri gizle";
 "Last charge" = "Son şarj";
+"Capacity" = "Kapasite";
+"current / maximum / designed" = "mevcut / maksimum / tasarlanmış";
+"Low power mode" = "Düşük güç modu";
+"Percentage inside the icon" = "Simgenin içinde yüzde";
+"Colorize battery" = "Pili renklendir";
 
 // Bluetooth
 "Battery to show" = "Gösterilecek pil";
+"No Bluetooth devices are available" = "Bluetooth cihazı yok";
+
+// Clock
+"Time zone" = "Saat dilimi";
+"Local" = "Yerel";
 
 // Colors
 "Based on utilization" = "Kullanıma dayalı";
 "Based on pressure" = "Yüke dayalı";
+"Based on cluster" = "Kümeye dayalı";
 "System accent" = "Sistem vurgusu";
 "Monochrome accent" = "Tek renkli vurgu";
 "Clear" = "Temizle";

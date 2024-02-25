@@ -34,87 +34,111 @@ public struct Version {
     var beta: Int? = nil
 }
 
-public class macAppUpdater {
-    private let user: String
-    private let repo: String
+public class Updater {
+    private let github: URL
+    private let server: URL
     
     private let appName: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as! String
     private let currentVersion: String = "v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as! String)"
     
-    public var latest: version_s? = nil
     private var observation: NSKeyValueObservation?
     
-    private var url: String {
-        return "https://api.github.com/repos/\(user)/\(repo)/releases/latest"
+    private var lastCheckTS: Int {
+        get {
+            return Store.shared.int(key: "updater_check_ts", defaultValue: -1)
+        }
+        set {
+            Store.shared.set(key: "updater_check_ts", value: newValue)
+        }
+    }
+    private var lastInstallTS: Int {
+        get {
+            return Store.shared.int(key: "updater_install_ts", defaultValue: -1)
+        }
+        set {
+            Store.shared.set(key: "updater_install_ts", value: newValue)
+        }
     }
     
-    public init(user: String, repo: String) {
-        self.user = user
-        self.repo = repo
+    public init(github: String, url: String) {
+        self.github = URL(string: "https://api.github.com/repos/\(github)/releases/latest")!
+        self.server = URL(string: "\(url)?macOS=\(ProcessInfo().operatingSystemVersion.getFullVersion())")!
     }
     
     deinit {
-      observation?.invalidate()
+        observation?.invalidate()
     }
     
-    public func check(completionHandler: @escaping (_ result: version_s?, _ error: Error?) -> Void) {
+    public func check(force: Bool = false, completion: @escaping (_ result: version_s?, _ error: Error?) -> Void) {
         if !isConnectedToNetwork() {
-            completionHandler(nil, "No internet connection")
+            completion(nil, "No internet connection")
             return
         }
         
-        fetchLastVersion { result, error in
-            guard error == nil else {
-                completionHandler(nil, error)
+        let diff = (Int(Date().timeIntervalSince1970) - self.lastCheckTS) / 60
+        if !force && diff <= 10 {
+            completion(nil, "last check was \(diff) minutes ago, stopping...")
+            return
+        }
+        
+        defer {
+            self.lastCheckTS = Int(Date().timeIntervalSince1970)
+        }
+        
+        self.fetchRelease(uri: self.server) { (result, err) in
+            guard let result = result, err == nil else {
+                self.fetchRelease(uri: self.github) { (result, err) in
+                    guard let result = result, err == nil else {
+                        completion(nil, err)
+                        return
+                    }
+                    
+                    completion(version_s(
+                        current: self.currentVersion,
+                        latest: result.tag,
+                        newest: isNewestVersion(currentVersion: self.currentVersion, latestVersion: result.tag),
+                        url: result.url
+                    ), nil)
+                }
                 return
             }
             
-            guard let results = result, results.count > 1 else {
-                completionHandler(nil, "wrong results")
-                return
-            }
-            
-            let downloadURL: String = result![1]
-            let lastVersion: String = result![0]
-            let newVersion: Bool = isNewestVersion(currentVersion: self.currentVersion, latestVersion: lastVersion)
-            
-            self.latest = version_s(current: self.currentVersion, latest: lastVersion, newest: newVersion, url: downloadURL)
-            completionHandler(self.latest, nil)
+            completion(version_s(
+                current: self.currentVersion,
+                latest: result.tag,
+                newest: isNewestVersion(currentVersion: self.currentVersion, latestVersion: result.tag),
+                url: result.url
+            ), nil)
         }
     }
     
-    private func fetchLastVersion(completionHandler: @escaping (_ result: [String]?, _ error: Error?) -> Void) {
-        guard let url = URL(string: self.url) else {
-            completionHandler(nil, "wrong url")
-            return
-        }
-        
-        URLSession.shared.dataTask(with: url) { data, _, error in
-            guard let data = data, error == nil else { return }
+    private func fetchRelease(uri: URL, completion: @escaping (_ result: (tag: String, url: String)?, _ error: Error?) -> Void) {
+        let task = URLSession.shared.dataTask(with: uri) { data, _, error in
+            guard let data = data, error == nil else {
+                completion(nil, "no data")
+                return
+            }
             
             do {
                 let jsonResponse = try JSONSerialization.jsonObject(with: data, options: [])
-                guard let jsonArray = jsonResponse as? [String: Any] else {
-                    completionHandler(nil, "parse json")
+                guard let jsonArray = jsonResponse as? [String: Any],
+                      let lastVersion = jsonArray["tag_name"] as? String,
+                      let assets = jsonArray["assets"] as? [[String: Any]],
+                      let asset = assets.first(where: {$0["name"] as! String == "\(self.appName).dmg"}),
+                      let downloadURL = asset["browser_download_url"] as? String else {
+                    completion(nil, "parse json")
                     return
                 }
-                let lastVersion = jsonArray["tag_name"] as? String
                 
-                guard let assets = jsonArray["assets"] as? [[String: Any]] else {
-                    completionHandler(nil, "parse assets")
-                    return
-                }
-                if let asset = assets.first(where: {$0["name"] as! String == "\(self.appName).dmg"}) {
-                    let downloadURL = asset["browser_download_url"] as? String
-                    completionHandler([lastVersion!, downloadURL!], nil)
-                }
+                 completion((lastVersion, downloadURL), nil)
             } catch let parsingError {
-                completionHandler(nil, parsingError)
+                completion(nil, parsingError)
             }
-        }.resume()
+        }
+        task.resume()
     }
     
-    public func download(_ url: URL, progressHandler: @escaping (_ progress: Progress) -> Void = {_ in }, doneHandler: @escaping (_ path: String) -> Void = {_ in }) {
+    public func download(_ url: URL, progress: @escaping (_ progress: Progress) -> Void = {_ in }, completion: @escaping (_ path: String) -> Void = {_ in }) {
         let downloadTask = URLSession.shared.downloadTask(with: url) { urlOrNil, _, _ in
             guard let fileURL = urlOrNil else { return }
             do {
@@ -127,21 +151,42 @@ public class macAppUpdater {
                         return
                     }
                     
-                    doneHandler(path)
+                    completion(path)
                 }
             } catch {
                 print("file error: \(error)")
             }
         }
         
-        self.observation = downloadTask.progress.observe(\.fractionCompleted) { progress, _ in
-            progressHandler(progress)
+        self.observation = downloadTask.progress.observe(\.fractionCompleted) { value, _ in
+            progress(value)
         }
         
         downloadTask.resume()
     }
     
-    public func install(path: String) {
+    public func install(path: String, completion: @escaping (_ error: String?) -> Void) {
+        let pwd = Bundle.main.bundleURL.absoluteString
+            .replacingOccurrences(of: "file://", with: "")
+            .replacingOccurrences(of: "Stats.app", with: "")
+            .replacingOccurrences(of: "//", with: "/")
+        let dmg = path.replacingOccurrences(of: "file://", with: "")
+        
+        if !FileManager.default.isWritableFile(atPath: pwd) {
+            completion("has no write permission on \(pwd)")
+            return
+        }
+        
+        let diff = (Int(Date().timeIntervalSince1970) - self.lastInstallTS) / 60
+        if diff <= 3 {
+            completion("last install was \(diff) minutes ago, stopping...")
+            return
+        }
+        
+        defer {
+            self.lastInstallTS = Int(Date().timeIntervalSince1970)
+        }
+        
         print("Started new version installation...")
         
         _ = syncShell("mkdir /tmp/Stats") // make sure that directory exist
@@ -160,11 +205,6 @@ public class macAppUpdater {
         
         print("Script is copied to $TMPDIR/updater.sh")
         
-        let pwd = Bundle.main.bundleURL.absoluteString
-            .replacingOccurrences(of: "file://", with: "")
-            .replacingOccurrences(of: "Stats.app", with: "")
-            .replacingOccurrences(of: "//", with: "/")
-        let dmg = path.replacingOccurrences(of: "file://", with: "")
         asyncShell("sh $TMPDIR/updater.sh --app \(pwd) --dmg \(dmg) >/dev/null &") // run updater script in in background
         
         print("Run updater.sh with app: \(pwd) and dmg: \(dmg)")
@@ -176,17 +216,17 @@ public class macAppUpdater {
         var toPath = to
         let fileName = (URL(fileURLWithPath: to.absoluteString)).lastPathComponent
         let fileExt  = (URL(fileURLWithPath: to.absoluteString)).pathExtension
-        var fileNameWithotSuffix: String!
+        var fileNameWithoutSuffix: String!
         var newFileName: String!
         var counter = 0
         
         if fileName.hasSuffix(fileExt) {
-            fileNameWithotSuffix = String(fileName.prefix(fileName.count - (fileExt.count+1)))
+            fileNameWithoutSuffix = String(fileName.prefix(fileName.count - (fileExt.count+1)))
         }
         
         while toPath.checkFileExist() {
             counter += 1
-            newFileName =  "\(fileNameWithotSuffix!)-\(counter).\(fileExt)"
+            newFileName =  "\(fileNameWithoutSuffix!)-\(counter).\(fileExt)"
             toPath = to.deletingLastPathComponent().appendingPathComponent(newFileName)
         }
         

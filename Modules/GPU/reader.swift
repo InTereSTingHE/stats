@@ -26,9 +26,14 @@ let vendors: [Data: String] = [
 
 internal class InfoReader: Reader<GPUs> {
     private var gpus: GPUs = GPUs()
+    private var displays: [gpu_s] = []
     private var devices: [device] = []
     
     public override func setup() {
+        if let list = SystemKit.shared.device.info.gpu {
+            self.displays = list
+        }
+        
         guard let PCIdevices = fetchIOService("IOPCIDevice") else {
             return
         }
@@ -61,7 +66,6 @@ internal class InfoReader: Reader<GPUs> {
         }
     }
     
-    // swiftlint:disable function_body_length
     public override func read() {
         guard let accelerators = fetchIOService(kIOAcceleratorClassName) else {
             return
@@ -82,6 +86,7 @@ internal class InfoReader: Reader<GPUs> {
             var id: String = ""
             var vendor: String? = nil
             var model: String = ""
+            var cores: Int? = nil
             let accMatch = (accelerator["IOPCIMatch"] as? String ?? accelerator["IOPCIPrimaryMatch"] as? String ?? "").lowercased()
             
             for (i, device) in devices.enumerated() {
@@ -99,6 +104,8 @@ internal class InfoReader: Reader<GPUs> {
             var type: GPU_types = .unknown
             
             let utilization: Int? = stats["Device Utilization %"] as? Int ?? stats["GPU Activity(%)"] as? Int ?? nil
+            let renderUtilization: Int? = stats["Renderer Utilization %"] as? Int ?? nil
+            let tilerUtilization: Int? = stats["Tiler Utilization %"] as? Int ?? nil
             var temperature: Int? = stats["Temperature(C)"] as? Int ?? nil
             let fanSpeed: Int? = stats["Fan Speed(%)"] as? Int ?? nil
             let coreClock: Int? = stats["Core Clock(MHz)"] as? Int ?? nil
@@ -127,6 +134,14 @@ internal class InfoReader: Reader<GPUs> {
                 }
             } else if ioClass.contains("agx") { // apple
                 predictModel = stats["model"] as? String ?? "Apple Graphics"
+                if let display = self.displays.first(where: { $0.vendor == "sppci_vendor_Apple" }) {
+                    if let name = display.name {
+                        predictModel = name
+                    }
+                    if let num = display.cores {
+                        cores = num
+                    }
+                }
                 type = .integrated
             } else {
                 predictModel = "Unknown"
@@ -146,7 +161,8 @@ internal class InfoReader: Reader<GPUs> {
                     type: type.rawValue,
                     IOClass: IOClass,
                     vendor: vendor,
-                    model: model
+                    model: model,
+                    cores: cores
                 ))
             }
             guard let idx = self.gpus.list.firstIndex(where: { $0.id == id }) else {
@@ -162,6 +178,18 @@ internal class InfoReader: Reader<GPUs> {
                     value = 100
                 }
                 self.gpus.list[idx].utilization = Double(value)/100
+            }
+            if var value = renderUtilization {
+                if value > 100 {
+                    value = 100
+                }
+                self.gpus.list[idx].renderUtilization = Double(value)/100
+            }
+            if var value = tilerUtilization {
+                if value > 100 {
+                    value = 100
+                }
+                self.gpus.list[idx].tilerUtilization = Double(value)/100
             }
             if let value = temperature {
                 self.gpus.list[idx].temperature = Double(value)

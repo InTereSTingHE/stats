@@ -14,6 +14,10 @@ import Cocoa
 extension String: LocalizedError {
     public var errorDescription: String? { return self }
     
+    public var digits: String {
+        return components(separatedBy: CharacterSet.decimalDigits.inverted).joined()
+    }
+    
     public func widthOfString(usingFont font: NSFont) -> CGFloat {
         let fontAttributes = [NSAttributedString.Key.font: font]
         let size = self.size(withAttributes: fontAttributes)
@@ -36,22 +40,34 @@ extension String: LocalizedError {
         return components.filter { !$0.isEmpty }.joined(separator: " ")
     }
     
-    public mutating func findAndCrop(pattern: String) -> String {
+    public func findAndCrop(pattern: String) -> (cropped: String, remain: String) {
+        do {
+            let regex = try NSRegularExpression(pattern: pattern)
+            let range = NSRange(self.startIndex..., in: self)
+            
+            if let match = regex.firstMatch(in: self, options: [], range: range) {
+                if let range = Range(match.range, in: self) {
+                    let cropped = String(self[range]).trimmingCharacters(in: .whitespaces)
+                    let remaining = self.replacingOccurrences(of: cropped, with: "", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+                    return (cropped, remaining)
+                }
+            }
+        } catch {
+            print("Error creating regex: \(error.localizedDescription)")
+        }
+        
+        return ("", self)
+    }
+    
+    public func find(pattern: String) -> String {
         do {
             let regex = try NSRegularExpression(pattern: pattern)
             let stringRange = NSRange(location: 0, length: self.utf16.count)
-            var line = self
             
             if let searchRange = regex.firstMatch(in: self, options: [], range: stringRange) {
                 let start = self.index(self.startIndex, offsetBy: searchRange.range.lowerBound)
                 let end = self.index(self.startIndex, offsetBy: searchRange.range.upperBound)
                 let value  = String(self[start..<end]).trimmingCharacters(in: .whitespaces)
-                line = self.replacingOccurrences(
-                    of: value,
-                    with: "",
-                    options: .regularExpression
-                )
-                self = line.trimmingCharacters(in: .whitespaces)
                 return value.trimmingCharacters(in: .whitespaces)
             }
         } catch {}
@@ -89,19 +105,23 @@ extension String: LocalizedError {
             return self
         }
     }
+    
+    func removingWhitespaces() -> String {
+        return components(separatedBy: .whitespaces).joined()
+    }
 }
 
-public extension Int {
+public extension DispatchSource.MemoryPressureEvent {
     func pressureColor() -> NSColor {
         switch self {
-        case 1:
+        case .normal:
             return NSColor.systemGreen
-        case 2:
+        case .warning:
             return NSColor.systemYellow
-        case 3:
+        case .critical:
             return NSColor.systemRed
         default:
-            return controlAccentColor
+            return .controlAccentColor
         }
     }
 }
@@ -157,7 +177,11 @@ public extension Double {
         }
     }
     
-    func batteryColor(color: Bool = false) -> NSColor {
+    func batteryColor(color: Bool = false, lowPowerMode: Bool? = nil) -> NSColor {
+        if let mode = lowPowerMode, mode {
+            return NSColor.systemOrange
+        }
+        
         switch self {
         case 0.2...0.4:
             if !color {
@@ -207,20 +231,11 @@ public extension Double {
 
 public extension NSView {
     var isDarkMode: Bool {
-        if #available(OSX 10.14, *) {
-            switch effectiveAppearance.name {
-            case .darkAqua, .vibrantDark, .accessibilityHighContrastDarkAqua, .accessibilityHighContrastVibrantDark:
-                return true
-            default:
-                return false
-            }
-        } else {
-            switch effectiveAppearance.name {
-            case .vibrantDark:
-                return true
-            default:
-                return false
-            }
+        switch effectiveAppearance.name {
+        case .darkAqua, .vibrantDark, .accessibilityHighContrastDarkAqua, .accessibilityHighContrastVibrantDark:
+            return true
+        default:
+            return false
         }
     }
     
@@ -330,8 +345,48 @@ public extension NSView {
         return view
     }
     
+    func fieldSettingRow(_ sender: NSTextFieldDelegate, title: String, value: String, placeholder: String? = nil, width: CGFloat = 200) -> NSView {
+        let view: NSStackView = NSStackView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.heightAnchor.constraint(equalToConstant: Constants.Settings.row).isActive = true
+        view.orientation = .horizontal
+        view.alignment = .centerY
+        view.distribution = .fill
+        view.spacing = 0
+        
+        let titleField: NSTextField = LabelField(frame: NSRect.zero, title)
+        titleField.font = NSFont.systemFont(ofSize: 12, weight: .regular)
+        titleField.textColor = .textColor
+        
+        let valueField: NSTextField = NSTextField()
+        valueField.font = NSFont.systemFont(ofSize: 12, weight: .regular)
+        valueField.textColor = .textColor
+        valueField.isEditable = true
+        valueField.isSelectable = true
+        valueField.isBezeled = false
+        valueField.wantsLayer = true
+        valueField.canDrawSubviewsIntoLayer = true
+        valueField.usesSingleLineMode = true
+        valueField.maximumNumberOfLines = 1
+        valueField.focusRingType = .none
+        valueField.stringValue = value
+        valueField.delegate = sender
+        if let placeholder {
+            valueField.placeholderString = placeholder
+        }
+        valueField.alignment = .natural
+        
+        view.addArrangedSubview(titleField)
+        view.addArrangedSubview(NSView())
+        view.addArrangedSubview(valueField)
+        
+        valueField.widthAnchor.constraint(equalToConstant: width).isActive = true
+        
+        return view
+    }
+    
     func selectView(action: Selector, items: [KeyValue_p], selected: String) -> NSPopUpButton {
-        let select: NSPopUpButton = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 50, height: 26))
+        let select: NSPopUpButton = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 50, height: 28))
         select.target = self
         select.action = action
         
@@ -398,24 +453,6 @@ extension URL {
 }
 
 public extension NSColor {
-    convenience init(hexString: String, alpha: CGFloat = 1.0) {
-        let hexString: String = hexString.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
-        let scanner = Scanner(string: hexString)
-        if hexString.hasPrefix("#") {
-            scanner.scanLocation = 1
-        }
-        var color: UInt32 = 0
-        scanner.scanHexInt32(&color)
-        let mask = 0x000000FF
-        let r = Int(color >> 16) & mask
-        let g = Int(color >> 8) & mask
-        let b = Int(color) & mask
-        let red   = CGFloat(r) / 255.0
-        let green = CGFloat(g) / 255.0
-        let blue  = CGFloat(b) / 255.0
-        self.init(red: red, green: green, blue: blue, alpha: alpha)
-    }
-    
     func grayscaled() -> NSColor {
         guard let space = CGColorSpace(name: CGColorSpace.extendedGray),
               let cg = self.cgColor.converted(to: space, intent: .perceptual, options: nil),
@@ -437,53 +474,61 @@ public extension CATransaction {
     }
 }
 
-public final class FlippedClipView: NSClipView {
-    public override var isFlipped: Bool {
-        return true
-    }
+public class FlippedStackView: NSStackView {
+    public override var isFlipped: Bool { return true }
 }
 
-public final class ScrollableStackView: NSView {
-    public let stackView: NSStackView = NSStackView()
-    public let clipView: FlippedClipView = FlippedClipView()
+public class ScrollableStackView: NSView {
+    public var stackView: NSStackView = FlippedStackView()
+    
+    private let clipView: NSClipView = NSClipView()
     private let scrollView: NSScrollView = NSScrollView()
     
-    public override init(frame: NSRect) {
+    public var scrollWidth: CGFloat? {
+        self.scrollView.verticalScroller?.frame.size.width
+    }
+    
+    public init(frame: NSRect = NSRect.zero, orientation: NSUserInterfaceLayoutOrientation = .vertical) {
         super.init(frame: frame)
         
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.borderType = .noBorder
-        scrollView.hasVerticalScroller = true
-        scrollView.hasHorizontalScroller = false
-        scrollView.autohidesScrollers = true
-        scrollView.horizontalScrollElasticity = .none
-        scrollView.drawsBackground = false
+        self.clipView.drawsBackground = false
+        
+        self.stackView.orientation = orientation
+        self.stackView.translatesAutoresizingMaskIntoConstraints = false
+        
+        self.scrollView.translatesAutoresizingMaskIntoConstraints = false
+        if orientation == .vertical {
+            self.scrollView.hasVerticalScroller = true
+            self.scrollView.hasHorizontalScroller = false
+            self.scrollView.autohidesScrollers = true
+            self.scrollView.horizontalScrollElasticity = .none
+        } else {
+            self.scrollView.hasVerticalScroller = false
+            self.scrollView.hasHorizontalScroller = true
+            self.scrollView.autohidesScrollers = true
+            self.scrollView.verticalScrollElasticity = .none
+        }
+        self.scrollView.drawsBackground = false
+        self.scrollView.contentView = self.clipView
+        self.scrollView.documentView = self.stackView
+        
         self.addSubview(self.scrollView)
         
         NSLayoutConstraint.activate([
-            scrollView.leftAnchor.constraint(equalTo: self.leftAnchor),
-            scrollView.rightAnchor.constraint(equalTo: self.rightAnchor),
-            scrollView.topAnchor.constraint(equalTo: self.topAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: self.bottomAnchor)
-        ])
-        
-        clipView.drawsBackground = false
-        scrollView.contentView = clipView
-        
-        stackView.orientation = .vertical
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.documentView = stackView
-        
-        NSLayoutConstraint.activate([
-            clipView.leftAnchor.constraint(equalTo: scrollView.leftAnchor),
-            clipView.rightAnchor.constraint(equalTo: scrollView.rightAnchor),
+            self.scrollView.leftAnchor.constraint(equalTo: self.leftAnchor),
+            self.scrollView.rightAnchor.constraint(equalTo: self.rightAnchor),
+            self.scrollView.topAnchor.constraint(equalTo: self.topAnchor),
+            self.scrollView.bottomAnchor.constraint(equalTo: self.bottomAnchor),
             
-            stackView.leftAnchor.constraint(equalTo: clipView.leftAnchor),
-            stackView.rightAnchor.constraint(equalTo: clipView.rightAnchor),
-            stackView.topAnchor.constraint(equalTo: clipView.topAnchor)
+            self.stackView.leftAnchor.constraint(equalTo: self.clipView.leftAnchor),
+            self.stackView.topAnchor.constraint(equalTo: self.clipView.topAnchor)
         ])
         
-        clipView.translatesAutoresizingMaskIntoConstraints = false
+        if orientation == .vertical {
+            self.stackView.rightAnchor.constraint(equalTo: self.clipView.rightAnchor).isActive = true
+        } else {
+            self.stackView.bottomAnchor.constraint(equalTo: self.clipView.bottomAnchor).isActive = true
+        }
     }
     
     required public init?(coder: NSCoder) {
@@ -519,5 +564,57 @@ extension NSTextView {
             }
         }
         return super.performKeyEquivalent(with: event)
+    }
+}
+
+public extension Data {
+    var socketAddress: sockaddr {
+        return withUnsafeBytes { $0.load(as: sockaddr.self) }
+    }
+    var socketAddressInternet: sockaddr_in {
+        return withUnsafeBytes { $0.load(as: sockaddr_in.self) }
+    }
+}
+
+public extension Date {
+    func convertToTimeZone(_ timeZone: TimeZone) -> Date {
+        return addingTimeInterval(TimeInterval(timeZone.secondsFromGMT(for: self) - TimeZone.current.secondsFromGMT(for: self)))
+    }
+    
+    func currentTimeSeconds() -> Int {
+        return Int(self.timeIntervalSince1970)
+    }
+}
+
+public extension TimeZone {
+    init(fromUTC: String) {
+        if fromUTC == "local" {
+            self = TimeZone.current
+            return
+        }
+        
+        let arr = fromUTC.split(separator: ":")
+        guard !arr.isEmpty else {
+            self = TimeZone.current
+            return
+        }
+        
+        var secondsFromGMT = 0
+        if arr.indices.contains(0), let h = Int(arr[0]) {
+            secondsFromGMT += h*3600
+        }
+        if arr.indices.contains(1), let m = Int(arr[1]) {
+            if secondsFromGMT < 0 {
+                secondsFromGMT -= m*60
+            } else {
+                secondsFromGMT += m*60
+            }
+        }
+        
+        if let tz = TimeZone(secondsFromGMT: secondsFromGMT) {
+            self = tz
+        } else {
+            self = TimeZone.current
+        }
     }
 }

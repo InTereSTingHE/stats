@@ -20,14 +20,14 @@
 "Open Disk settings" = "Настройки на диска";
 "Sensors" = "Сензори";
 "Open Sensors settings" = "Настройки на сензорите";
-"Fans" = "Вентилатори";
-"Open Fans settings" = "Настройки на вентилаторите";
 "Network" = "Мрежа";
 "Open Network settings" = "Настройки на мрежата";
 "Battery" = "Батерия";
 "Open Battery settings" = "Настройки на мрежата";
 "Bluetooth" = "Bluetooth";
 "Open Bluetooth settings" = "Настройки на bluetooth";
+"Clock" = "Clock";
+"Open Clock settings" = "Open clock settings";
 
 // Words
 "Unknown" = "Непознато";
@@ -59,13 +59,55 @@
 "Center alignment" = "Център";
 "Right alignment" = "Дясно";
 "Dashboard" = "Табло";
+"Enabled" = "Включено";
 "Disabled" = "Изключено";
+"Silent" = "Тихо";
+"Units" = "Единици";
+"Fans" = "Вентилатори";
+"Scaling" = "Скалиране";
+"Linear" = "Линейно";
+"Square" = "Квадратно";
+"Cube" = "Кубично";
+"Logarithmic" = "Логаритмично";
+"Cores" = "Ядра";
+"Settings" = "Settings";
+"Name" = "Name";
+"Format" = "Format";
+"Turn off" = "Turn off";
+"Warning" = "Warning";
+"Critical" = "Critical";
+"Usage" = "Usage";
+
+// Setup
+"Stats Setup" = "Настройки на Stats";
+"Previous" = "Предишно";
+"Previous page" = "Предишна страница";
+"Next" = "Следващо";
+"Next page" = "Следваща страница";
+"Finish" = "Приключване";
+"Finish setup" = "Приключване на настройването";
+"Welcome to Stats" = "Добре дошли в Stats";
+"welcome_message" = "Благодарим Ви, че ползвате Stats, безплатен системен монитор за macOS с отворен код.";
+"Start the application automatically when starting your Mac" = "Стартирай приложението автоматично при стартиране на вашия Mac";
+"Do not start the application automatically when starting your Mac" = "Не стартирай приложението автоматично при стартиране на вашия Mac";
+"Do everything silently in the background (recommended)" = "Прави всичко тихо във фонов режим (препоръчително)";
+"Check for a new version on startup" = "Проверяване за нова версия при стартиране";
+"Check for a new version every day (once a day)" = "Проверяване за нова версия всеки ден (веднъж на ден)";
+"Check for a new version every week (once a week)" = "Проверяване за нова версия всяка седмица (веднъж на седмица)";
+"Check for a new version every month (once a month)" = "Проверяване за нова версия всеки месец (веднъж на месец)";
+"Never check for updates (not recommended)" = "Без проверяване за нови версии (не се препоръчва)";
+"Anonymous telemetry for better development decisions" = "Anonymous telemetry for better development decisions";
+"Share anonymous telemetry data" = "Share anonymous telemetry data";
+"Do not share anonymous telemetry data" = "Do not share anonymous telemetry data";
+"The configuration is completed" = "Конфигурацията е завършена";
+"finish_setup_message" = "Всичко е настроено! \n Stats е приложение с отворен код, безплатно е и винаги ще бъде. \n Ако ви допада, може да подкрепите проекта, ще сме много благодарни!";
 
 // Alerts
 "New version available" = "Налична е нова версия";
 "Click to install the new version of Stats" = "Натиснете, за да инсталирате новата версия на Stats";
 "Successfully updated" = "Успешно обновяване";
 "Stats was updated to v" = "Stats е обновена до версия v%0";
+"Reset settings text" = "Всички настройки на приложението ще бъдат занулени и приложението ще се рестартира. Сигурни ли сте, че искате това?";
 
 // Settings
 "Open Activity Monitor" = "Отваряне на монитора на активностите";
@@ -73,7 +115,8 @@
 "Support the application" = "Подкрепа";
 "Close application" = "Затваряне на приложението";
 "Open application settings" = "Отваряне на настройките на приложението";
-"Open dashboard" = "Open dashboard";
+"Open dashboard" = "Отваряне на таблото";
+"No notifications available in this module" = "No notifications available in this module";
 
 // Application settings
 "Update application" = "Обновяване на приложението";
@@ -86,10 +129,21 @@
 "Check for update" = "Проверка за обновления";
 "Show icon in dock" = "Показване на икона в Dock";
 "Start at login" = "Автоматично стартиране";
+"Build number" = "Build number";
+"Reset settings" = "Зануляване на настройките";
+"Pause the Stats" = "Паузиране на Stats";
+"Resume the Stats" = "Продължаване на Stats";
+"Combined modules" = "Combined modules";
+"Spacing" = "Spacing";
+"Share anonymous telemetry" = "Share anonymous telemetry";
 
 // Dashboard
 "Serial number" = "Сериен номер";
 "Uptime" = "Време от последно рестартиране";
+"Number of cores" = "%0 ядра";
+"Number of threads" = "%0 нишки";
+"Number of e-cores" = "%0 ефикасни ядра";
+"Number of p-cores" = "%0 производителни ядра";
 
 // Update
 "The latest version of Stats installed" = "Имате най-новата версия на Stats";
@@ -118,15 +172,18 @@
 "Network chart widget" = "Мрежова диаграма";
 "Speed widget" = "Скорост";
 "Battery widget" = "Батерия";
-"Text widget" = "Текст";
+"Stack widget" = "Stack";
 "Memory widget" = "Памет";
 "Static width" = "Постоянна ширина";
 "Tachometer widget" = "Тахометър";
-"Show symbols" = "Show symbols";
-"Label widget" = "Label";
-"Number of reads in the chart" = "Number of reads in the chart";
-"Color of download" = "Color of download";
-"Color of upload" = "Color of upload";
+"State widget" = "State widget";
+"Show symbols" = "Показване на символи";
+"Label widget" = "Етикет";
+"Number of reads in the chart" = "Брой прочитания в графиката";
+"Color of download" = "Цвят на свалянето";
+"Color of upload" = "Цвят на качването";
+"Monospaced font" = "Monospaced font";
+"Reverse order" = "Reverse order";
 
 // Module Kit
 "Open module settings" = "Отваряне на настройките на модула";
@@ -137,10 +194,19 @@
 "Details" = "Подробности";
 "Top processes" = "Топ процеси";
 "Pictogram" = "Пиктограма";
+"Module" = "Модул";
+"Widgets" = "Джаджи";
+"Popup" = "Изскачащ прозорец";
+"Notifications" = "Известия";
+"Merge widgets" = "Сливане на уиджети";
+"No available widgets to configure" = "Няма налични уиджети за конфигуриране";
+"No options to configure for the popup in this module" = "Няма опции за конфигуриране за изскачащият прозорец в този модул";
 
 // Modules
 "Number of top processes" = "Брой топ процеси";
 "Update interval for top processes" = "Интервал на опресняване на топ процесите";
+"Notification level" = "Ниво на известия";
+"Chart color" = "Цвят на графиката";
 
 // CPU
 "CPU usage" = "Употреба на процесора";
@@ -158,6 +224,21 @@
 "1 minute" = "1 минута";
 "5 minutes" = "5 минути";
 "15 minutes" = "15 минути";
+"CPU usage threshold" = "CPU usage threshold";
+"CPU usage is" = "Употребата на процесорът е %0";
+"Efficiency cores" = "Ефикасни ядра";
+"Performance cores" = "Производителни ядра";
+"System color" = "Системен цвят";
+"User color" = "Потребителски цвят";
+"Idle color" = "Цвят при неактивност";
+"Cluster grouping" = "Cluster grouping";
+"Efficiency cores color" = "Efficiency cores color";
+"Performance cores color" = "Performance cores color";
+"Total load" = "Total load";
+"System load" = "System load";
+"User load" = "User load";
+"Efficiency cores load" = "Efficiency cores load";
+"Performance cores load" = "Performance cores load";
 
 // GPU
 "GPU to show" = "Показване на графична карта";
@@ -175,6 +256,10 @@
 "Core clock" = "Тактова честота на ядрото";
 "Memory clock" = "Тактова честота на паметта";
 "Utilization" = "Утилизация";
+"Render utilization" = "Render utilization";
+"Tiler utilization" = "Tiler utilization";
+"GPU usage threshold" = "GPU usage threshold";
+"GPU usage is" = "Употребата на грфичната карта е %0";
 
 // RAM
 "Memory usage" = "Заета памет";
@@ -187,6 +272,15 @@
 "Free" = "Свободна";
 "Swap" = "Swap";
 "Split the value (App/Wired/Compressed)" = "Разделете стойността (Приложения/Wired/Компересирана)";
+"RAM utilization threshold" = "Праг на утилизацията на паметта";
+"RAM utilization is" = "Утилизацията на паметта е %0";
+"App color" = "App color";
+"Wired color" = "Wired color";
+"Compressed color" = "Цвят на компресираната памет";
+"Free color" = "Цвят на свободната памет";
+"Free memory (less than)" = "Free memory (less than)";
+"Swap size" = "Swap size";
+"Free RAM is" = "Free RAM is %0";
 
 // Disk
 "Show removable disks" = "Показване на преносими дискове";
@@ -195,6 +289,11 @@
 "Disk to show" = "Показване на диск";
 "Open disk" = "Отваряне на диск";
 "Switch view" = "Преключване на изглед";
+"Disk utilization threshold" = "Праг на утилизацията на диска";
+"Disk utilization is" = "Утилизацията на диска е %0";
+"Read color" = "Read color";
+"Write color" = "Write color";
+"Disk usage" = "Disk usage";
 
 // Sensors
 "Temperature unit" = "Температурна единица";
@@ -202,6 +301,20 @@
 "Fahrenheit" = "Фаренхайт";
 "Save the fan speed" = "Запазете скоростта на вентилатора";
 "Fan" = "Вентилатор";
+"HID sensors" = "HID sensors";
+"Synchronize fan's control" = "Synchronize fan's control";
+"Current" = "Текущо";
+"Energy" = "Енергия";
+"Show unknown sensors" = "Показване на непознатите сензори";
+"Install fan helper" = "Install fan helper";
+"Uninstall fan helper" = "Uninstall fan helper";
+"Fan value" = "Fan value";
+"Turn off fan" = "Turn off fan";
+"You are going to turn off the fan. This is not recommended action that can damage your mac, are you sure you want to do that?" = "You are going to turn off the fan. This is not recommended action that can damage your mac, are you sure you want to do that?";
+"Sensor threshold" = "Sensor threshold";
+"Left fan" = "Left";
+"Right fan" = "Right";
+"Fastest fan" = "Fastest";
 
 // Network
 "Uploading" = "Качване";
@@ -223,7 +336,27 @@
 "Interface based" = "На база интерфейс";
 "Processes based" = "На база процес";
 "Reset data usage" = "Зануляване";
-"VPN mode" = "VPN mode";
+"VPN mode" = "VPN режим";
+"Standard" = "Standard";
+"Security" = "Security";
+"Channel" = "Канал";
+"Common scale" = "Common scale";
+"Autodetection" = "Автоматично засичане";
+"Widget activation threshold" = "Widget activation threshold";
+"Internet connection" = "Интернет връзка";
+"Active state color" = "Цвят на активното състояние";
+"Nonactive state color" = "Цвят на неактивното състояние";
+"Connectivity host (ICMP)" = "Connectivity host (ICMP)";
+"Leave empty to disable the check" = "Оставете празно, за да изключите проверката";
+"Transparent pictogram when no activity" = "Transparent pictogram when no activity";
+"Connectivity history" = "Connectivity history";
+"Auto-refresh public IP address" = "Auto-refresh public IP address";
+"Every hour" = "Every hour";
+"Every 12 hours" = "Every 12 hours";
+"Every 24 hours" = "Every 24 hours";
+"Network activity" = "Network activity";
+"Last reset" = "Last reset %0 ago";
+"Latency" = "Latency";
 
 // Battery
 "Level" = "Ниво";
@@ -256,13 +389,24 @@
 "Time format" = "Формат на времето";
 "Hide additional information when full" = "Скриване на допълнителна информация при пълен заряд";
 "Last charge" = "Последно зареждане";
+"Capacity" = "Капацитет";
+"current / maximum / designed" = "current / maximum / designed";
+"Low power mode" = "Режим за пестене на енергията";
+"Percentage inside the icon" = "Процент в иконата";
+"Colorize battery" = "Colorize battery";
 
 // Bluetooth
 "Battery to show" = "Батерия за показване";
+"No Bluetooth devices are available" = "Няма налични Bluetooth устройства";
+
+// Clock
+"Time zone" = "Time zone";
+"Local" = "Local";
 
 // Colors
 "Based on utilization" = "На база утилизация";
 "Based on pressure" = "На база натоварване";
+"Based on cluster" = "Based on cluster";
 "System accent" = "Системен акцент";
 "Monochrome accent" = "Едноцветен акцент";
 "Clear" = "Прозрачно";

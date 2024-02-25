@@ -24,9 +24,11 @@ public struct ColorValue: Equatable {
     public static func ==(lhs: ColorValue, rhs: ColorValue) -> Bool {
         return lhs.value == rhs.value
     }
+    // swiftlint:enable operator_whitespace
 }
 
 public enum AppUpdateInterval: String {
+    case silent = "Silent"
     case atStart = "At start"
     case separator1 = "separator_1"
     case oncePerDay = "Once per day"
@@ -36,6 +38,7 @@ public enum AppUpdateInterval: String {
     case never = "Never"
 }
 public let AppUpdateIntervals: [KeyValue_t] = [
+    KeyValue_t(key: "Silent", value: AppUpdateInterval.silent.rawValue),
     KeyValue_t(key: "At start", value: AppUpdateInterval.atStart.rawValue),
     KeyValue_t(key: "separator_1", value: "separator_1"),
     KeyValue_t(key: "Once per day", value: AppUpdateInterval.oncePerDay.rawValue),
@@ -52,6 +55,26 @@ public let TemperatureUnits: [KeyValue_t] = [
     KeyValue_t(key: "fahrenheit", value: "Fahrenheit", additional: UnitTemperature.fahrenheit)
 ]
 
+public let CombinedModulesSpacings: [KeyValue_t] = [
+    KeyValue_t(key: "none", value: "None"),
+    KeyValue_t(key: "1", value: "1", additional: 1),
+    KeyValue_t(key: "2", value: "2", additional: 2),
+    KeyValue_t(key: "3", value: "3", additional: 3),
+    KeyValue_t(key: "4", value: "4", additional: 4),
+    KeyValue_t(key: "5", value: "5", additional: 5),
+    KeyValue_t(key: "6", value: "6", additional: 6),
+    KeyValue_t(key: "7", value: "7", additional: 7),
+    KeyValue_t(key: "8", value: "8", additional: 8)
+]
+
+public let PublicIPAddressRefreshIntervals: [KeyValue_t] = [
+    KeyValue_t(key: "never", value: "Never"),
+    KeyValue_t(key: "separator", value: "separator"),
+    KeyValue_t(key: "hour", value: "Every hour"),
+    KeyValue_t(key: "12", value: "Every 12 hours"),
+    KeyValue_t(key: "24", value: "Every 24 hours")
+]
+
 public enum DataSizeBase: String {
     case bit
     case byte
@@ -61,11 +84,17 @@ public let SpeedBase: [KeyValue_t] = [
     KeyValue_t(key: "byte", value: "Byte", additional: DataSizeBase.byte)
 ]
 
+public enum StackMode: String {
+    case auto = "automatic"
+    case oneRow = "oneRow"
+    case twoRows = "twoRows"
+}
+
 public let SensorsWidgetMode: [KeyValue_t] = [
-    KeyValue_t(key: "automatic", value: "Automatic"),
+    KeyValue_t(key: StackMode.auto.rawValue, value: "Automatic"),
     KeyValue_t(key: "separator", value: "separator"),
-    KeyValue_t(key: "oneRow", value: "One row"),
-    KeyValue_t(key: "twoRows", value: "Two rows")
+    KeyValue_t(key: StackMode.oneRow.rawValue, value: "One row"),
+    KeyValue_t(key: StackMode.twoRows.rawValue, value: "Two rows")
 ]
 
 public let SpeedPictogram: [KeyValue_t] = [
@@ -79,6 +108,15 @@ public let SpeedPictogram: [KeyValue_t] = [
 public let BatteryAdditionals: [KeyValue_t] = [
     KeyValue_t(key: "none", value: "None"),
     KeyValue_t(key: "separator", value: "separator"),
+    KeyValue_t(key: "innerPercentage", value: "Percentage inside the icon"),
+    KeyValue_t(key: "separator", value: "separator"),
+    KeyValue_t(key: "percentage", value: "Percentage"),
+    KeyValue_t(key: "time", value: "Time"),
+    KeyValue_t(key: "percentageAndTime", value: "Percentage and time"),
+    KeyValue_t(key: "timeAndPercentage", value: "Time and percentage")
+]
+
+public let BatteryInfo: [KeyValue_t] = [
     KeyValue_t(key: "percentage", value: "Percentage"),
     KeyValue_t(key: "time", value: "Time"),
     KeyValue_t(key: "percentageAndTime", value: "Percentage and time"),
@@ -90,7 +128,7 @@ public let ShortLong: [KeyValue_t] = [
     KeyValue_t(key: "long", value: "Long")
 ]
 
-public let ReaderUpdateIntervals: [Int] = [1, 2, 3, 5, 10, 15, 30]
+public let ReaderUpdateIntervals: [Int] = [1, 2, 3, 5, 10, 15, 30, 60]
 public let NumbersOfProcesses: [Int] = [0, 3, 5, 8, 10, 15]
 
 public typealias Bandwidth = (upload: Int64, download: Int64)
@@ -118,11 +156,12 @@ public struct Color: KeyValue_p, Equatable {
 extension Color: CaseIterable {
     public static var utilization: Color { return Color(key: "utilization", value: "Based on utilization", additional: NSColor.black) }
     public static var pressure: Color { return Color(key: "pressure", value: "Based on pressure", additional: NSColor.black) }
+    public static var cluster: Color { return Color(key: "cluster", value: "Based on cluster", additional: NSColor.controlAccentColor) }
     
     public static var separator1: Color { return Color(key: "separator_1", value: "separator_1", additional: NSColor.black) }
     
-    public static var systemAccent: Color { return Color(key: "system", value: "System accent", additional: NSColor.black) }
-    public static var monochrome: Color { return Color(key: "monochrome", value: "Monochrome accent", additional: NSColor.black) }
+    public static var systemAccent: Color { return Color(key: "system", value: "System accent", additional: NSColor.controlAccentColor) }
+    public static var monochrome: Color { return Color(key: "monochrome", value: "Monochrome accent", additional: NSColor.textColor) }
     
     public static var separator2: Color { return Color(key: "separator_2", value: "separator_2", additional: NSColor.black) }
     
@@ -154,11 +193,11 @@ extension Color: CaseIterable {
     public static var indigo: Color { if #available(OSX 10.15, *) {
         return Color(key: "indigo", value: "Indigo", additional: NSColor.systemIndigo)
     } else {
-        return Color(key: "indigo", value: "Indigo", additional: NSColor(hexString: "#4B0082"))
+        return Color(key: "indigo", value: "Indigo", additional: NSColor(red: 75, green: 0, blue: 130, alpha: 1))
     } }
     
     public static var allCases: [Color] {
-        return [.utilization, .pressure, separator1,
+        return [.utilization, .pressure, .cluster, separator1,
                 .systemAccent, .monochrome, separator2,
                 .clear, .white, .black, .gray, .secondGray, .darkGray, .lightGray,
                 .red, .secondRed, .green, .secondGreen, .blue, .secondBlue, .yellow, .secondYellow,
@@ -167,18 +206,20 @@ extension Color: CaseIterable {
         ]
     }
     
+    public static var allColors: [Color] {
+        return [.systemAccent, .monochrome, .separator2, .clear, .white, .black, .gray, .secondGray, .darkGray, .lightGray,
+                .red, .secondRed, .green, .secondGreen, .blue, .secondBlue, .yellow, .secondYellow,
+                .orange, .secondOrange, .purple, .secondPurple, .brown, .secondBrown,
+                .cyan, .magenta, .pink, .teal, .indigo
+        ]
+    }
+    
+    public static var random: Color {
+        Color.allColors[.random(in: 0...Color.allColors.count)]
+    }
+    
     public static func fromString(_ key: String, defaultValue: Color = .systemAccent) -> Color {
         return Color.allCases.first{ $0.key == key } ?? defaultValue
-    }
-}
-
-public var controlAccentColor: NSColor {
-    get {
-        if #available(OSX 10.14, *) {
-            return NSColor.controlAccentColor
-        } else {
-            return NSColor.systemBlue
-        }
     }
 }
 
@@ -196,11 +237,80 @@ public extension Notification.Name {
     static let togglePopup = Notification.Name("togglePopup")
     static let toggleWidget = Notification.Name("toggleWidget")
     static let openModuleSettings = Notification.Name("openModuleSettings")
-    static let settingsAppear = Notification.Name("settingsAppear")
-    static let switchWidget = Notification.Name("switchWidget")
-    static let checkForUpdates = Notification.Name("checkForUpdates")
-    static let changeCronInterval = Notification.Name("changeCronInterval")
     static let clickInSettings = Notification.Name("clickInSettings")
     static let refreshPublicIP = Notification.Name("refreshPublicIP")
     static let resetTotalNetworkUsage = Notification.Name("resetTotalNetworkUsage")
+    static let syncFansControl = Notification.Name("syncFansControl")
+    static let fanHelperState = Notification.Name("fanHelperState")
+    static let toggleOneView = Notification.Name("toggleOneView")
+    static let widgetRearrange = Notification.Name("widgetRearrange")
+    static let moduleRearrange = Notification.Name("moduleRearrange")
+    static let pause = Notification.Name("pause")
+    static let toggleFanControl = Notification.Name("toggleFanControl")
 }
+
+public var isARM: Bool {
+    SystemKit.shared.device.platform != .intel
+}
+
+public let notificationLevels: [KeyValue_t] = [
+    KeyValue_t(key: "", value: "Disabled"),
+    KeyValue_t(key: "0.03", value: "3%"),
+    KeyValue_t(key: "0.05", value: "5%"),
+    KeyValue_t(key: "0.1", value: "10%"),
+    KeyValue_t(key: "0.15", value: "15%"),
+    KeyValue_t(key: "0.2", value: "20%"),
+    KeyValue_t(key: "0.25", value: "25%"),
+    KeyValue_t(key: "0.3", value: "30%"),
+    KeyValue_t(key: "0.35", value: "35%"),
+    KeyValue_t(key: "0.4", value: "40%"),
+    KeyValue_t(key: "0.45", value: "45%"),
+    KeyValue_t(key: "0.5", value: "50%"),
+    KeyValue_t(key: "0.55", value: "55%"),
+    KeyValue_t(key: "0.6", value: "60%"),
+    KeyValue_t(key: "0.65", value: "65%"),
+    KeyValue_t(key: "0.7", value: "70%"),
+    KeyValue_t(key: "0.75", value: "75%"),
+    KeyValue_t(key: "0.8", value: "80%"),
+    KeyValue_t(key: "0.85", value: "85%"),
+    KeyValue_t(key: "0.9", value: "90%"),
+    KeyValue_t(key: "0.95", value: "95%"),
+    KeyValue_t(key: "0.97", value: "97%"),
+    KeyValue_t(key: "1.0", value: "100%")
+]
+
+public struct Scale: KeyValue_p, Equatable {
+    public let key: String
+    public let value: String
+    public var additional: Any?
+    
+    public static func == (lhs: Scale, rhs: Scale) -> Bool {
+        return lhs.key == rhs.key
+    }
+}
+
+extension Scale: CaseIterable {
+    public static var none: Scale { return Scale(key: "none", value: "None") }
+    public static var separator: Scale { return Scale(key: "separator", value: "separator") }
+    public static var linear: Scale { return Scale(key: "linear", value: "Linear") }
+    public static var square: Scale { return Scale(key: "square", value: "Square") }
+    public static var cube: Scale { return Scale(key: "cube", value: "Cube") }
+    public static var logarithmic: Scale { return Scale(key: "logarithmic", value: "Logarithmic") }
+    
+    public static var allCases: [Scale] {
+        return [.none, .separator, .linear, .square, .cube, .logarithmic]
+    }
+    
+    public static func fromString(_ key: String, defaultValue: Scale = .linear) -> Scale {
+        return Scale.allCases.first{ $0.key == key } ?? defaultValue
+    }
+}
+
+public enum FanValue: String {
+    case rpm
+    case percentage
+}
+public let FanValues: [KeyValue_t] = [
+    KeyValue_t(key: "rpm", value: "RPM", additional: FanValue.rpm),
+    KeyValue_t(key: "percentage", value: "Percentage", additional: FanValue.percentage)
+]

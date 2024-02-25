@@ -16,12 +16,15 @@ public class NetworkChart: WidgetWrapper {
     private var frameState: Bool = false
     private var labelState: Bool = false
     private var historyCount: Int = 60
-    private var downloadColor: Color = .secondRed
-    private var uploadColor: Color = .secondBlue
+    private var downloadColor: Color = .secondBlue
+    private var uploadColor: Color = .secondRed
+    private var scaleState: Scale = .linear
+    private var commonScaleState: Bool = true
+    private var reverseOrderState: Bool = false
     
     private var chart: NetworkChartView = NetworkChartView(
         frame: NSRect(x: 0, y: 0, width: 30, height: Constants.Widget.height - (2*Constants.Widget.margin.y)),
-        num: 60, minMax: false
+        num: 60, minMax: false, toolTip: false
     )
     private var width: CGFloat {
         get {
@@ -51,6 +54,8 @@ public class NetworkChart: WidgetWrapper {
     private var boxSettingsView: NSView? = nil
     private var frameSettingsView: NSView? = nil
     
+    public var NSLabelCharts: [NSAttributedString] = []
+    
     public init(title: String, config: NSDictionary?, preview: Bool = false) {
         var widgetTitle: String = title
         if let config = config {
@@ -78,12 +83,17 @@ public class NetworkChart: WidgetWrapper {
             self.historyCount = Store.shared.int(key: "\(self.title)_\(self.type.rawValue)_historyCount", defaultValue: self.historyCount)
             self.downloadColor = Color.fromString(Store.shared.string(key: "\(self.title)_\(self.type.rawValue)_downloadColor", defaultValue: self.downloadColor.key))
             self.uploadColor = Color.fromString(Store.shared.string(key: "\(self.title)_\(self.type.rawValue)_uploadColor", defaultValue: self.uploadColor.key))
+            self.scaleState = Scale.fromString(Store.shared.string(key: "\(self.title)_\(self.type.rawValue)_scale", defaultValue: self.scaleState.key))
+            self.commonScaleState = Store.shared.bool(key: "\(self.title)_\(self.type.rawValue)_commonScale", defaultValue: self.commonScaleState)
+            self.reverseOrderState = Store.shared.bool(key: "\(self.title)_\(self.type.rawValue)_reverseOrder", defaultValue: self.reverseOrderState)
             
             if let downloadColor =  self.downloadColor.additional as? NSColor,
                let uploadColor = self.uploadColor.additional as? NSColor {
-                self.chart.colors = [downloadColor, uploadColor]
+                self.chart.setColors(in: downloadColor, out: uploadColor)
             }
+            self.chart.setScale(self.scaleState, self.commonScaleState)
             self.chart.reinit(self.historyCount)
+            self.chart.setReverseOrder(self.reverseOrderState)
         }
         
         if preview {
@@ -92,6 +102,19 @@ public class NetworkChart: WidgetWrapper {
                 list.append((Double.random(in: 0..<23), Double.random(in: 0..<23)))
             }
             self.chart.points = list
+        }
+        
+        let style = NSMutableParagraphStyle()
+        style.alignment = .center
+        let stringAttributes = [
+            NSAttributedString.Key.font: NSFont.systemFont(ofSize: 7, weight: .regular),
+            NSAttributedString.Key.foregroundColor: NSColor.textColor,
+            NSAttributedString.Key.paragraphStyle: style
+        ]
+        
+        for char in String(self.title.prefix(3)).uppercased().reversed() {
+            let str = NSAttributedString.init(string: "\(char)", attributes: stringAttributes)
+            self.NSLabelCharts.append(str)
         }
     }
     
@@ -111,22 +134,13 @@ public class NetworkChart: WidgetWrapper {
         var width = self.width + (Constants.Widget.margin.x*2)
         
         if self.labelState {
-            let style = NSMutableParagraphStyle()
-            style.alignment = .center
-            let stringAttributes = [
-                NSAttributedString.Key.font: NSFont.systemFont(ofSize: 7, weight: .regular),
-                NSAttributedString.Key.foregroundColor: NSColor.textColor,
-                NSAttributedString.Key.paragraphStyle: style
-            ]
-            
             let letterHeight = self.frame.height / 3
             let letterWidth: CGFloat = 6.0
             
             var yMargin: CGFloat = 0
-            for char in String(self.title.prefix(3)).uppercased().reversed() {
+            for char in self.NSLabelCharts {
                 let rect = CGRect(x: x, y: yMargin, width: letterWidth, height: letterHeight)
-                let str = NSAttributedString.init(string: "\(char)", attributes: stringAttributes)
-                str.draw(with: rect)
+                char.draw(with: rect)
                 yMargin += letterHeight
             }
             
@@ -156,6 +170,7 @@ public class NetworkChart: WidgetWrapper {
             height: box.bounds.height - offset
         )
         self.chart.setFrameSize(NSSize(width: chartFrame.width, height: chartFrame.height))
+        self.chart.setFrameOrigin(NSPoint(x: chartFrame.origin.x, y: chartFrame.origin.y))
         self.chart.draw(chartFrame)
         
         context.restoreGState()
@@ -222,29 +237,36 @@ public class NetworkChart: WidgetWrapper {
             selected: "\(self.historyCount)"
         ))
         
+        view.addArrangedSubview(selectSettingsRow(
+            title: localizedString("Scaling"),
+            action: #selector(toggleScale),
+            items: Scale.allCases.filter({ $0 != .none && $0 != .separator }),
+            selected: self.scaleState.key
+        ))
+        
+        view.addArrangedSubview(toggleSettingRow(
+            title: localizedString("Common scale"),
+            action: #selector(toggleCommonScale),
+            state: self.commonScaleState
+        ))
+        
+        view.addArrangedSubview(toggleSettingRow(
+            title: localizedString("Reverse order"),
+            action: #selector(toggleReverseOrder),
+            state: self.reverseOrderState
+        ))
+        
         return view
     }
     
     @objc private func toggleLabel(_ sender: NSControl) {
-        var state: NSControl.StateValue? = nil
-        if #available(OSX 10.15, *) {
-            state = sender is NSSwitch ? (sender as! NSSwitch).state: nil
-        } else {
-            state = sender is NSButton ? (sender as! NSButton).state: nil
-        }
-        self.labelState = state! == .on ? true : false
+        self.labelState = controlState(sender)
         Store.shared.set(key: "\(self.title)_\(self.type.rawValue)_label", value: self.labelState)
         self.display()
     }
     
     @objc private func toggleBox(_ sender: NSControl) {
-        var state: NSControl.StateValue? = nil
-        if #available(OSX 10.15, *) {
-            state = sender is NSSwitch ? (sender as! NSSwitch).state: nil
-        } else {
-            state = sender is NSButton ? (sender as! NSButton).state: nil
-        }
-        self.boxState = state! == .on ? true : false
+        self.boxState = controlState(sender)
         Store.shared.set(key: "\(self.title)_\(self.type.rawValue)_box", value: self.boxState)
         
         if self.frameState {
@@ -257,13 +279,7 @@ public class NetworkChart: WidgetWrapper {
     }
     
     @objc private func toggleFrame(_ sender: NSControl) {
-        var state: NSControl.StateValue? = nil
-        if #available(OSX 10.15, *) {
-            state = sender is NSSwitch ? (sender as! NSSwitch).state: nil
-        } else {
-            state = sender is NSButton ? (sender as! NSButton).state: nil
-        }
-        self.frameState = state! == .on ? true : false
+        self.frameState = controlState(sender)
         Store.shared.set(key: "\(self.title)_\(self.type.rawValue)_frame", value: self.frameState)
         
         if self.boxState {
@@ -276,9 +292,7 @@ public class NetworkChart: WidgetWrapper {
     }
     
     @objc private func toggleHistoryCount(_ sender: NSMenuItem) {
-        guard let key = sender.representedObject as? String, let value = Int(key) else {
-            return
-        }
+        guard let key = sender.representedObject as? String, let value = Int(key) else { return }
         self.historyCount = value
         
         Store.shared.set(key: "\(self.title)_\(self.type.rawValue)_historyCount", value: value)
@@ -287,34 +301,51 @@ public class NetworkChart: WidgetWrapper {
     }
     
     @objc private func toggleDownloadColor(_ sender: NSMenuItem) {
-        guard let key = sender.representedObject as? String else {
-            return
-        }
+        guard let key = sender.representedObject as? String else { return }
         if let newColor = Color.allCases.first(where: { $0.key == key }) {
             self.downloadColor = newColor
             Store.shared.set(key: "\(self.title)_\(self.type.rawValue)_downloadColor", value: newColor.key)
         }
         
-        if let downloadColor =  self.downloadColor.additional as? NSColor,
-           let uploadColor = self.uploadColor.additional as? NSColor {
-            self.chart.colors = [downloadColor, uploadColor]
+        if let downloadColor =  self.downloadColor.additional as? NSColor  {
+            self.chart.setColors(in: downloadColor)
         }
         self.display()
     }
     
     @objc private func toggleUploadColor(_ sender: NSMenuItem) {
-        guard let key = sender.representedObject as? String else {
-            return
-        }
+        guard let key = sender.representedObject as? String else { return }
         if let newColor = Color.allCases.first(where: { $0.key == key }) {
             self.uploadColor = newColor
             Store.shared.set(key: "\(self.title)_\(self.type.rawValue)_uploadColor", value: newColor.key)
         }
         
-        if let downloadColor =  self.downloadColor.additional as? NSColor,
-           let uploadColor = self.uploadColor.additional as? NSColor {
-            self.chart.colors = [downloadColor, uploadColor]
+        if let uploadColor = self.uploadColor.additional as? NSColor {
+            self.chart.setColors(out: uploadColor)
         }
+        self.display()
+    }
+    
+    @objc private func toggleScale(_ sender: NSMenuItem) {
+        guard let key = sender.representedObject as? String,
+              let value = Scale.allCases.first(where: { $0.key == key }) else { return }
+        self.scaleState = value
+        self.chart.setScale(value, self.commonScaleState)
+        Store.shared.set(key: "\(self.title)_\(self.type.rawValue)_scale", value: key)
+        self.display()
+    }
+    
+    @objc private func toggleCommonScale(_ sender: NSControl) {
+        self.commonScaleState = controlState(sender)
+        self.chart.setScale(self.scaleState, self.commonScaleState)
+        Store.shared.set(key: "\(self.title)_\(self.type.rawValue)_commonScale", value: self.commonScaleState)
+        self.display()
+    }
+    
+    @objc private func toggleReverseOrder(_ sender: NSControl) {
+        self.reverseOrderState = controlState(sender)
+        self.chart.setReverseOrder(self.reverseOrderState)
+        Store.shared.set(key: "\(self.title)_\(self.type.rawValue)_reverseOrder", value: self.reverseOrderState)
         self.display()
     }
 }

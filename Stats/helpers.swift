@@ -11,13 +11,14 @@
 
 import Cocoa
 import Kit
+import UserNotifications
 
 extension AppDelegate {
     internal func parseArguments() {
         let args = CommandLine.arguments
         
         if args.contains("--reset") {
-            debug("Receive --reset argument. Reseting store (UserDefaults)...")
+            debug("Receive --reset argument. Resetting store (UserDefaults)...")
             Store.shared.reset()
         }
         
@@ -55,6 +56,9 @@ extension AppDelegate {
     internal func parseVersion() {
         let key = "version"
         let currentVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as! String
+        guard let updateInterval = AppUpdateInterval(rawValue: Store.shared.string(key: "update-interval", defaultValue: AppUpdateInterval.silent.rawValue)) else {
+            return
+        }
         
         if !Store.shared.exist(key: key) {
             Store.shared.reset()
@@ -65,12 +69,14 @@ extension AppDelegate {
                 return
             }
             
-            if isNewestVersion(currentVersion: prevVersion, latestVersion: currentVersion) {
-                _ = showNotification(
-                    title: localizedString("Successfully updated"),
-                    subtitle: localizedString("Stats was updated to v", currentVersion),
-                    id: "updated-from-\(prevVersion)-to-\(currentVersion)"
-                )
+            if updateInterval != .silent && isNewestVersion(currentVersion: prevVersion, latestVersion: currentVersion) {
+                let title: String = localizedString("Successfully updated")
+                let subtitle: String = localizedString("Stats was updated to v", currentVersion)
+                
+                let id = showNotification(title: title, subtitle: subtitle, delegate: self)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                    removeNotification(id)
+                }
             }
             
             debug("Detected previous version \(prevVersion). Current version (\(currentVersion) set")
@@ -83,6 +89,8 @@ extension AppDelegate {
         if !Store.shared.exist(key: "runAtLoginInitialized") {
             Store.shared.set(key: "runAtLoginInitialized", value: true)
             LaunchAtLogin.isEnabled = true
+        } else {
+            LaunchAtLogin.migrate()
         }
         
         if Store.shared.exist(key: "dockIcon") {
@@ -90,12 +98,49 @@ extension AppDelegate {
             NSApp.setActivationPolicy(dockIconStatus)
         }
         
-        if Store.shared.string(key: "update-interval", defaultValue: AppUpdateInterval.atStart.rawValue) != AppUpdateInterval.never.rawValue {
-            self.checkForNewVersion()
+        if let updateInterval = AppUpdateInterval(rawValue: Store.shared.string(key: "update-interval", defaultValue: AppUpdateInterval.silent.rawValue)) {
+            self.updateActivity.invalidate()
+            self.updateActivity.repeats = true
+            
+            debug("Application update interval is '\(updateInterval.rawValue)'")
+            
+            switch updateInterval {
+            case .oncePerDay: self.updateActivity.interval = 60 * 60 * 24
+            case .oncePerWeek: self.updateActivity.interval = 60 * 60 * 24 * 7
+            case .oncePerMonth: self.updateActivity.interval = 60 * 60 * 24 * 30
+            case .atStart:
+                self.checkForNewVersion()
+                return
+            case .silent:
+                self.checkForNewVersion(silent: true)
+                return
+            default: return
+            }
+            
+            self.updateActivity.schedule { (completion: @escaping NSBackgroundActivityScheduler.CompletionHandler) in
+                self.checkForNewVersion()
+                completion(NSBackgroundActivityScheduler.Result.finished)
+            }
         }
     }
     
-    internal func checkForNewVersion() {
+    internal func setup(completion: @escaping () -> Void) {
+        if Store.shared.exist(key: "setupProcess") || Store.shared.exist(key: "runAtLoginInitialized") {
+            completion()
+            return
+        }
+        
+        debug("showing the setup window")
+        
+        self.setupWindow.show()
+        self.setupWindow.finishHandler = {
+            debug("setup is finished, starting the app")
+            completion()
+        }
+        Store.shared.set(key: "setupProcess", value: true)
+    }
+    
+    internal func checkForNewVersion(silent: Bool = false) {
         updater.check { result, error in
             if error != nil {
                 debug("error updater.check(): \(error!.localizedDescription)")
@@ -107,23 +152,96 @@ extension AppDelegate {
                 return
             }
             
-            DispatchQueue.main.async(execute: {
-                if version.newest {
-                    debug("show update window because new version of app found: \(version.latest)")
-                    
-                    self.updateNotification.identifier = "new-version-\(version.latest)"
-                    self.updateNotification.title = localizedString("New version available")
-                    self.updateNotification.subtitle = localizedString("Click to install the new version of Stats")
-                    self.updateNotification.soundName = NSUserNotificationDefaultSoundName
-                    
-                    self.updateNotification.hasActionButton = true
-                    self.updateNotification.actionButtonTitle = localizedString("Install")
-                    self.updateNotification.userInfo = ["url": version.url]
-                    
-                    NSUserNotificationCenter.default.delegate = self
-                    NSUserNotificationCenter.default.deliver(self.updateNotification)
+            if !version.newest {
+                return
+            }
+            
+            if silent {
+                if let url = URL(string: version.url) {
+                    updater.download(url, completion: { path in
+                        updater.install(path: path) { error in
+                            if let error {
+                                showAlert("Error update Stats", error, .critical)
+                            }
+                        }
+                    })
                 }
-            })
+                return
+            }
+            
+            debug("show update view because new version of app found: \(version.latest)")
+            
+            let center = UNUserNotificationCenter.current()
+            center.getNotificationSettings { settings in
+                switch settings.authorizationStatus {
+                case .authorized, .provisional:
+                    self.showUpdateNotification(version: version)
+                case .denied:
+                    self.showUpdateWindow(version: version)
+                case .notDetermined:
+                    center.requestAuthorization(options: [.sound, .alert, .badge], completionHandler: { (_, error) in
+                        if error == nil {
+                            NSApplication.shared.registerForRemoteNotifications()
+                            self.showUpdateNotification(version: version)
+                        } else {
+                            self.showUpdateWindow(version: version)
+                        }
+                    })
+                @unknown default:
+                    self.showUpdateWindow(version: version)
+                    error_msg("unknown notification setting")
+                }
+            }
         }
+    }
+    
+    private func showUpdateNotification(version: version_s) {
+        debug("show update notification")
+        _ = showNotification(
+            title: localizedString("New version available"),
+            subtitle: localizedString("Click to install the new version of Stats"),
+            userInfo: ["url": version.url],
+            delegate: self
+        )
+    }
+    
+    private func showUpdateWindow(version: version_s) {
+        debug("show update window")
+        
+        DispatchQueue.main.async(execute: {
+            self.updateWindow.open(version)
+        })
+    }
+    
+    @objc internal func listenForAppPause() {
+        for m in modules {
+            if self.pauseState && m.enabled {
+                m.disable()
+            } else if !self.pauseState && !m.enabled && Store.shared.bool(key: "\(m.config.name)_state", defaultValue: m.config.defaultState) {
+                m.enable()
+            }
+        }
+        self.icon()
+    }
+    
+    internal func icon() {
+        if self.pauseState {
+            self.menuBarItem = NSStatusBar.system.statusItem(withLength: AppIcon.size.width)
+            self.menuBarItem?.autosaveName = "Stats"
+            self.menuBarItem?.button?.addSubview(AppIcon())
+            
+            self.menuBarItem?.button?.target = self
+            self.menuBarItem?.button?.action = #selector(self.openSettings)
+            self.menuBarItem?.button?.sendAction(on: [.leftMouseDown, .rightMouseDown])
+        } else {
+            if let item = self.menuBarItem {
+                NSStatusBar.system.removeStatusItem(item)
+            }
+            self.menuBarItem = nil
+        }
+    }
+    
+    @objc internal func openSettings() {
+        NotificationCenter.default.post(name: .toggleSettings, object: nil, userInfo: ["module": "Dashboard"])
     }
 }

@@ -8,15 +8,32 @@
 //
 //  Copyright © 2020 Serhiy Mytrovtsiy. All rights reserved.
 //
-// swiftlint:disable file_length
 
 import Cocoa
 import ServiceManagement
+import UserNotifications
 
 public struct LaunchAtLogin {
     private static let id = "\(Bundle.main.bundleIdentifier!).LaunchAtLogin"
     
     public static var isEnabled: Bool {
+        get {
+            if #available(macOS 13, *) {
+                return isEnabledNext
+            } else {
+                return isEnabledLegacy
+            }
+        }
+        set {
+            if #available(macOS 13, *) {
+                isEnabledNext = newValue
+            } else {
+                isEnabledLegacy = newValue
+            }
+        }
+    }
+    
+    private static var isEnabledLegacy: Bool {
         get {
             guard let jobs = (LaunchAtLogin.self as DeprecationWarningWorkaround.Type).jobsDict else {
                 return false
@@ -27,6 +44,36 @@ public struct LaunchAtLogin {
         set {
             SMLoginItemSetEnabled(id as CFString, newValue)
         }
+    }
+    
+    @available(macOS 13, *)
+    private static var isEnabledNext: Bool {
+        get { SMAppService.mainApp.status == .enabled }
+        set {
+            do {
+                if newValue {
+                    if SMAppService.mainApp.status == .enabled {
+                        try? SMAppService.mainApp.unregister()
+                    }
+                    try SMAppService.mainApp.register()
+                } else {
+                    try SMAppService.mainApp.unregister()
+                }
+            } catch {
+                print("failed to \(newValue ? "enable" : "disable") launch at login: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    public static func migrate() {
+        guard #available(macOS 13, *), !Store.shared.exist(key: "LaunchAtLoginNext") else {
+            return
+        }
+        
+        Store.shared.set(key: "LaunchAtLoginNext", value: true)
+        isEnabledNext = isEnabledLegacy
+        isEnabledLegacy = false
+        try? SMAppService.loginItem(identifier: id).unregister()
     }
 }
 
@@ -47,15 +94,32 @@ public protocol KeyValue_p {
     var additional: Any? { get }
 }
 
-public struct KeyValue_t: KeyValue_p {
+public struct KeyValue_t: KeyValue_p, Codable {
     public let key: String
     public let value: String
     public let additional: Any?
+    
+    private enum CodingKeys: String, CodingKey {
+        case key, value
+    }
     
     public init(key: String, value: String, additional: Any? = nil) {
         self.key = key
         self.value = value
         self.additional = additional
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.key = try container.decode(String.self, forKey: .key)
+        self.value = try container.decode(String.self, forKey: .value)
+        self.additional = nil
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(key, forKey: .key)
+        try container.encode(value, forKey: .value)
     }
 }
 
@@ -134,9 +198,9 @@ public struct Units {
         case 1_024..<(1_024 * 1_024 * 1_024):
             return String(format: "%.0f MB", megabytes)
         case 1_024..<(1_024 * 1_024 * 1_024 * 1_024):
-            return String(format: "%.2f GB", gigabytes)
+            return String(format: "%.1f GB", gigabytes)
         case (1_024 * 1_024 * 1_024 * 1_024)...Int64.max:
-            return String(format: "%.2f TB", terabytes)
+            return String(format: "%.1f TB", terabytes)
         default:
             return String(format: "%.0f KB", kilobytes)
         }
@@ -172,9 +236,9 @@ public struct DiskSize {
         case 1_000..<(1_000 * 1_000 * 1_000):
             return String(format: "%.0f MB", megabytes)
         case 1_000..<(1_000 * 1_000 * 1_000 * 1_000):
-            return String(format: "%.2f GB", gigabytes)
+            return String(format: "%.1f GB", gigabytes)
         case (1_000 * 1_000 * 1_000 * 1_000)...Int64.max:
-            return String(format: "%.2f TB", terabytes)
+            return String(format: "%.1f TB", terabytes)
         default:
             return String(format: "%.0f KB", kilobytes)
         }
@@ -182,7 +246,7 @@ public struct DiskSize {
 }
 
 public class LabelField: NSTextField {
-    public init(frame: NSRect, _ label: String = "") {
+    public init(frame: NSRect = NSRect.zero, _ label: String = "") {
         super.init(frame: frame)
         
         self.isEditable = false
@@ -196,6 +260,9 @@ public class LabelField: NSTextField {
         self.textColor = .secondaryLabelColor
         self.alignment = .natural
         self.font = NSFont.systemFont(ofSize: 12, weight: .regular)
+        
+        self.cell?.truncatesLastVisibleLine = true
+        self.cell?.usesSingleLineMode = true
     }
     
     required init?(coder: NSCoder) {
@@ -204,7 +271,7 @@ public class LabelField: NSTextField {
 }
 
 public class ValueField: NSTextField {
-    public init(frame: NSRect, _ value: String = "") {
+    public init(frame: NSRect = NSRect.zero, _ value: String = "") {
         super.init(frame: frame)
         
         self.isEditable = false
@@ -218,6 +285,8 @@ public class ValueField: NSTextField {
         self.textColor = .textColor
         self.alignment = .right
         self.font = NSFont.systemFont(ofSize: 13, weight: .regular)
+        
+        self.cell?.usesSingleLineMode = true
     }
     
     required init?(coder: NSCoder) {
@@ -255,7 +324,6 @@ public func separatorView(_ title: String, origin: NSPoint = NSPoint(x: 0, y: 0)
     labelView.alignment = .center
     labelView.textColor = .secondaryLabelColor
     labelView.font = NSFont.systemFont(ofSize: 12, weight: .medium)
-    labelView.stringValue = title
     
     view.addSubview(labelView)
     
@@ -282,7 +350,30 @@ public func popupRow(_ view: NSView, n: CGFloat = 0, title: String, value: Strin
     return (labelView, valueView)
 }
 
-public func popupWithColorRow(_ view: NSView, color: NSColor, n: CGFloat, title: String, value: String) -> ValueField {
+public func portalRow(_ v: NSStackView, title: String) -> ValueField {
+    let view: NSStackView = NSStackView()
+    view.orientation = .horizontal
+    view.distribution = .fillProportionally
+    view.spacing = 1
+    
+    let labelView: LabelField = LabelField(title)
+    labelView.font = NSFont.systemFont(ofSize: 11, weight: .regular)
+    
+    let valueView: ValueField = ValueField()
+    valueView.font = NSFont.systemFont(ofSize: 12, weight: .regular)
+    
+    view.addArrangedSubview(labelView)
+    view.addArrangedSubview(NSView())
+    view.addArrangedSubview(valueView)
+    
+    v.addArrangedSubview(view)
+    
+    view.widthAnchor.constraint(equalTo: v.widthAnchor).isActive = true
+    
+    return valueView
+}
+
+public func popupWithColorRow(_ view: NSView, color: NSColor, n: CGFloat, title: String, value: String) -> (NSView, LabelField, ValueField) {
     let rowView: NSView = NSView(frame: NSRect(x: 0, y: 22*n, width: view.frame.width, height: 22))
     
     let colorView: NSView = NSView(frame: NSRect(x: 2, y: 5, width: 12, height: 12))
@@ -304,7 +395,38 @@ public func popupWithColorRow(_ view: NSView, color: NSColor, n: CGFloat, title:
         view.addSubview(rowView)
     }
     
-    return valueView
+    return (colorView, labelView, valueView)
+}
+
+public func portalWithColorRow(_ v: NSStackView, color: NSColor, title: String) -> (NSView, ValueField) {
+    let view: NSStackView = NSStackView()
+    view.orientation = .horizontal
+    view.distribution = .fillProportionally
+    view.spacing = 1
+    
+    let colorView: NSView = NSView()
+    colorView.widthAnchor.constraint(equalToConstant: 5).isActive = true
+    colorView.wantsLayer = true
+    colorView.layer?.backgroundColor = color.cgColor
+    colorView.layer?.cornerRadius = 2
+    
+    let labelView: LabelField = LabelField(title)
+    labelView.font = NSFont.systemFont(ofSize: 11, weight: .regular)
+    
+    let valueView: ValueField = ValueField()
+    valueView.font = NSFont.systemFont(ofSize: 12, weight: .regular)
+    valueView.widthAnchor.constraint(equalToConstant: 40).isActive = true
+    
+    view.addArrangedSubview(colorView)
+    view.addArrangedSubview(labelView)
+    view.addArrangedSubview(NSView())
+    view.addArrangedSubview(valueView)
+    
+    v.addArrangedSubview(view)
+    
+    view.widthAnchor.constraint(equalTo: v.widthAnchor).isActive = true
+    
+    return (colorView, valueView)
 }
 
 public extension Array where Element: Equatable {
@@ -331,8 +453,12 @@ public func findAndToggleNSControlState(_ view: NSView?, state: NSControl.StateV
 }
 
 public func findAndToggleEnableNSControlState(_ view: NSView?, state: Bool) {
-    if let control = view?.subviews.first(where: { $0 is NSControl && !($0 is NSTextField) }) {
-        toggleEnableNSControlState(control as? NSControl, state: state)
+    if let control = view?.subviews.first(where: { ($0 is NSControl || $0 is NSPopUpButton) && !($0 is NSTextField) }) {
+        if control is NSControl {
+            toggleEnableNSControlState(control as? NSControl, state: state)
+        } else if control is NSPopUpButton {
+            toggleEnableNSControlState(control as? NSPopUpButton, state: state)
+        }
     }
 }
 
@@ -351,6 +477,8 @@ public func toggleNSControlState(_ control: NSControl?, state: NSControl.StateVa
 public func toggleEnableNSControlState(_ control: NSControl?, state: Bool) {
     if #available(OSX 10.15, *) {
         if let checkbox = control as? NSSwitch {
+            checkbox.isEnabled = state
+        } else if let checkbox = control as? NSPopUpButton {
             checkbox.isEnabled = state
         }
     } else {
@@ -477,38 +605,53 @@ public func isNewestVersion(currentVersion: String, latestVersion: String) -> Bo
     return false
 }
 
-public func showNotification(title: String, subtitle: String? = nil, text: String? = nil, id: String = UUID().uuidString, icon: NSImage? = nil) -> NSUserNotification {
-    let notification = NSUserNotification()
+public func showNotification(title: String, subtitle: String? = nil, userInfo: [AnyHashable: Any] = [:], delegate: UNUserNotificationCenterDelegate? = nil) -> String {
+    let id = UUID().uuidString
     
-    notification.identifier = id
-    notification.title = title
-    notification.subtitle = subtitle
-    notification.informativeText = text
-    notification.soundName = NSUserNotificationDefaultSoundName
-    notification.hasActionButton = false
+    let content = UNMutableNotificationContent()
+    content.title = title
+    if let value = subtitle {
+        content.subtitle = value
+    }
+    content.userInfo = userInfo
+    content.sound = UNNotificationSound.default
     
-    if icon != nil {
-        notification.setValue(icon, forKey: "_identityImage")
+    let request = UNNotificationRequest(identifier: id, content: content, trigger: nil)
+    let center = UNUserNotificationCenter.current()
+    center.delegate = delegate
+    
+    center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+    center.add(request) { (error: Error?) in
+        if let err = error {
+            print(err)
+        }
     }
     
-    NSUserNotificationCenter.default.deliver(notification)
-    
-    return notification
+    return id
 }
 
-public struct TopProcess {
+public func removeNotification(_ id: String) {
+    let center = UNUserNotificationCenter.current()
+    center.removeDeliveredNotifications(withIdentifiers: [id])
+}
+
+public struct TopProcess: Codable, Process_p {
     public var pid: Int
-    public var command: String
-    public var name: String?
+    public var name: String
     public var usage: Double
-    public var icon: NSImage?
+    public var icon: NSImage {
+        get {
+            if let app = NSRunningApplication(processIdentifier: pid_t(self.pid)), let icon = app.icon {
+                return icon
+            }
+            return Constants.defaultProcessIcon
+        }
+    }
     
-    public init(pid: Int, command: String, name: String?, usage: Double, icon: NSImage?) {
+    public init(pid: Int, name: String, usage: Double) {
         self.pid = pid
-        self.command = command
         self.name = name
         self.usage = usage
-        self.icon = icon != nil ? icon : Constants.defaultProcessIcon
     }
 }
 
@@ -533,16 +676,19 @@ public func fetchIOService(_ name: String) -> [NSDictionary]? {
     var list: [NSDictionary] = []
     
     let result = IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceMatching(name), &iterator)
-    if result == kIOReturnSuccess {
-        while obj != 0 {
-            obj = IOIteratorNext(iterator)
-            if let props = getIOProperties(obj) {
-                list.append(props)
-            }
-            IOObjectRelease(obj)
-        }
-        IOObjectRelease(iterator)
+    if result != kIOReturnSuccess {
+        print("Error IOServiceGetMatchingServices(): " + (String(cString: mach_error_string(result), encoding: String.Encoding.ascii) ?? "unknown error"))
+        return nil
     }
+    
+    while obj != 0 {
+        obj = IOIteratorNext(iterator)
+        if let props = getIOProperties(obj) {
+            list.append(props)
+        }
+        IOObjectRelease(obj)
+    }
+    IOObjectRelease(iterator)
     
     return list.isEmpty ? nil : list
 }
@@ -561,13 +707,48 @@ public func getIOProperties(_ entry: io_registry_entry_t) -> NSDictionary? {
     return properties?.takeUnretainedValue()
 }
 
+public func getIOName(_ entry: io_registry_entry_t) -> String? {
+    let pointer = UnsafeMutablePointer<io_name_t>.allocate(capacity: 1)
+    
+    let result = IORegistryEntryGetName(entry, pointer)
+    if result != kIOReturnSuccess {
+        print("Error IORegistryEntryGetName(): " + (String(cString: mach_error_string(result), encoding: String.Encoding.ascii) ?? "unknown error"))
+        return nil
+    }
+    
+    return String(cString: UnsafeRawPointer(pointer).assumingMemoryBound(to: CChar.self))
+}
+
+public func getIOChildrens(_ entry: io_registry_entry_t) -> [String]? {
+    var iter: io_iterator_t = io_iterator_t()
+    if IORegistryEntryGetChildIterator(entry, kIOServicePlane, &iter) != kIOReturnSuccess {
+        return nil
+    }
+    
+    var iterator: io_registry_entry_t = 1
+    var list: [String] = []
+    while iterator != 0 {
+        iterator = IOIteratorNext(iter)
+        
+        let pointer = UnsafeMutablePointer<io_name_t>.allocate(capacity: 1)
+        if IORegistryEntryGetName(iterator, pointer) != kIOReturnSuccess {
+            continue
+        }
+        
+        list.append(String(cString: UnsafeRawPointer(pointer).assumingMemoryBound(to: CChar.self)))
+        IOObjectRelease(iterator)
+    }
+    
+    return list
+}
+
 public class ColorView: NSView {
     public var inactiveColor: NSColor = NSColor.lightGray.withAlphaComponent(0.75)
     
-    private let color: NSColor
+    private var color: NSColor
     private var state: Bool
     
-    public init(frame: NSRect, color: NSColor, state: Bool = false, radius: CGFloat = 2) {
+    public init(frame: NSRect = NSRect.zero, color: NSColor, state: Bool = false, radius: CGFloat = 2) {
         self.color = color
         self.state = state
         
@@ -588,6 +769,12 @@ public class ColorView: NSView {
             self.state = newState
         }
     }
+    
+    public func setColor(_ newColor: NSColor) {
+        guard self.color != newColor else { return }
+        self.color = newColor
+        self.layer?.backgroundColor = newColor.cgColor
+    }
 }
 
 public func localizedString(_ key: String, _ params: String..., comment: String = "") -> String {
@@ -600,32 +787,36 @@ public func localizedString(_ key: String, _ params: String..., comment: String 
     return string
 }
 
-extension UnitTemperature {
-    static var current: UnitTemperature {
+public extension UnitTemperature {
+    static var system: UnitTemperature {
         let measureFormatter = MeasurementFormatter()
         let measurement = Measurement(value: 0, unit: UnitTemperature.celsius)
         return measureFormatter.string(from: measurement).hasSuffix("C") ? .celsius : .fahrenheit
     }
-}
-
-// swiftlint:disable identifier_name
-public func Temperature(_ value: Double) -> String {
-    let stringUnit: String = Store.shared.string(key: "temperature_units", defaultValue: "system")
-    let formatter = MeasurementFormatter()
-    formatter.locale = Locale.init(identifier: "en_US")
-    formatter.numberFormatter.maximumFractionDigits = 0
-    formatter.unitOptions = .providedUnit
     
-    var measurement = Measurement(value: value, unit: UnitTemperature.celsius)
-    if stringUnit == "system" {
-        measurement.convert(to: UnitTemperature.current)
-    } else {
-        if let temperatureUnit = TemperatureUnits.first(where: { $0.key == stringUnit }) {
-            if let unit = temperatureUnit.additional as? UnitTemperature {
-                measurement.convert(to: unit)
+    static var current: UnitTemperature {
+        let stringUnit: String = Store.shared.string(key: "temperature_units", defaultValue: "system")
+        var unit = UnitTemperature.system
+        if stringUnit != "system" {
+            if let value = TemperatureUnits.first(where: { $0.key == stringUnit }), let temperatureUnit = value.additional as? UnitTemperature {
+                unit = temperatureUnit
             }
         }
+        return unit
     }
+}
+
+public func temperature(_ value: Double, defaultUnit: UnitTemperature = UnitTemperature.celsius, fractionDigits: Int = 0) -> String {
+    let formatter = MeasurementFormatter()
+    formatter.locale = Locale.init(identifier: "en_US")
+    formatter.numberFormatter.maximumFractionDigits = fractionDigits
+    if fractionDigits != 0 {
+        formatter.numberFormatter.minimumFractionDigits = fractionDigits
+    }
+    formatter.unitOptions = .providedUnit
+    
+    var measurement = Measurement(value: value, unit: defaultUnit)
+    measurement.convert(to: UnitTemperature.current)
     
     return formatter.string(from: measurement)
 }
@@ -639,131 +830,6 @@ public func sysctlByName(_ name: String) -> Int64 {
     }
     
     return num
-}
-
-public class ProcessView: NSStackView {
-    private var pid: Int? = nil
-    private var lock: Bool = false
-    
-    private var imageView: NSImageView = NSImageView(frame: NSRect(x: 5, y: 5, width: 12, height: 12))
-    private var killView: NSButton = NSButton(frame: NSRect(x: 5, y: 5, width: 12, height: 12))
-    private var labelView: LabelField = {
-        let view = LabelField(frame: NSRect(x: 0, y: 0, width: 0, height: 0))
-        view.cell?.truncatesLastVisibleLine = true
-        return view
-    }()
-    private var valueView: ValueField = ValueField(frame: NSRect(x: 0, y: 0, width: 0, height: 0))
-    
-    public init() {
-        super.init(frame: NSRect(x: 0, y: 0, width: 264, height: 22))
-        
-        self.wantsLayer = true
-        self.orientation = .horizontal
-        self.distribution = .fillProportionally
-        self.spacing = 0
-        self.layer?.cornerRadius = 3
-        
-        let imageBox: NSView = {
-            let view = NSView(frame: NSRect(x: 0, y: 0, width: 0, height: 0))
-            
-            self.killView.bezelStyle = .regularSquare
-            self.killView.translatesAutoresizingMaskIntoConstraints = false
-            self.killView.imageScaling = .scaleNone
-            self.killView.image = Bundle(for: type(of: self)).image(forResource: "cancel")!
-            if #available(OSX 10.14, *) {
-                self.killView.contentTintColor = .lightGray
-            }
-            self.killView.isBordered = false
-            self.killView.action = #selector(self.kill)
-            self.killView.target = self
-            self.killView.toolTip = localizedString("Kill process")
-            self.killView.focusRingType = .none
-            self.killView.isHidden = true
-            
-            view.addSubview(self.imageView)
-            view.addSubview(self.killView)
-            
-            return view
-        }()
-        
-        self.addArrangedSubview(imageBox)
-        self.addArrangedSubview(self.labelView)
-        self.addArrangedSubview(self.valueView)
-        
-        self.addTrackingArea(NSTrackingArea(
-            rect: NSRect(x: 0, y: 0, width: self.frame.width, height: self.frame.height),
-            options: [NSTrackingArea.Options.activeAlways, NSTrackingArea.Options.mouseEnteredAndExited, NSTrackingArea.Options.activeInActiveApp],
-            owner: self,
-            userInfo: nil
-        ))
-        
-        NSLayoutConstraint.activate([
-            imageBox.widthAnchor.constraint(equalToConstant: self.bounds.height),
-            imageBox.heightAnchor.constraint(equalToConstant: self.bounds.height),
-            self.labelView.heightAnchor.constraint(equalToConstant: 16),
-            self.widthAnchor.constraint(equalToConstant: self.bounds.width),
-            self.heightAnchor.constraint(equalToConstant: self.bounds.height)
-        ])
-    }
-    
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-    
-    public override func mouseEntered(with: NSEvent) {
-        if self.lock {
-            self.imageView.isHidden = true
-            self.killView.isHidden = false
-            return
-        }
-        self.layer?.backgroundColor = .init(gray: 0.01, alpha: 0.05)
-    }
-    
-    public override func mouseExited(with: NSEvent) {
-        if self.lock {
-            self.imageView.isHidden = false
-            self.killView.isHidden = true
-            return
-        }
-        self.layer?.backgroundColor = .none
-    }
-    
-    public override func mouseDown(with: NSEvent) {
-        self.lock = !self.lock
-        if self.lock {
-            self.imageView.isHidden = true
-            self.killView.isHidden = false
-            self.layer?.backgroundColor = .init(gray: 0.01, alpha: 0.1)
-        } else {
-            self.imageView.isHidden = false
-            self.killView.isHidden = true
-            self.layer?.backgroundColor = .none
-        }
-    }
-    
-    public func set(_ process: TopProcess, _ value: String) {
-        if self.lock && process.pid != self.pid { return }
-        
-        self.labelView.stringValue = process.name != nil ? process.name! : process.command
-        self.valueView.stringValue = value
-        self.imageView.image = process.icon
-        self.pid = process.pid
-        self.toolTip = "pid: \(process.pid)"
-    }
-    
-    public func clear() {
-        self.labelView.stringValue = ""
-        self.valueView.stringValue = ""
-        self.imageView.image = nil
-        self.pid = nil
-        self.toolTip = ""
-    }
-    
-    @objc public func kill() {
-        if let pid = self.pid {
-            asyncShell("kill \(pid)")
-        }
-    }
 }
 
 public class CAText: CATextLayer {
@@ -914,65 +980,362 @@ public class SettingsContainerView: NSStackView {
 
 public class SMCHelper {
     public static let shared = SMCHelper()
-    private let smc: String
     
-    public init() {
-        self.smc = Bundle.main.path(forResource: "smc", ofType: nil)!
+    public var isInstalled: Bool {
+        syncShell("ls /Library/PrivilegedHelperTools/").contains("eu.exelban.Stats.SMC.Helper")
     }
     
+    private var connection: NSXPCConnection? = nil
+    
     public func setFanSpeed(_ id: Int, speed: Int) {
-        if !self.checkRights() {
-            if !self.ensureRights() {
-                return
+        guard let helper = self.helper(nil) else { return }
+        helper.setFanSpeed(id: id, value: speed) { result in
+            if let result, !result.isEmpty {
+                NSLog("set fan speed: \(result)")
             }
         }
-        
-        _ = syncShell("\(self.smc) fan -id \(id) -v \(speed)")
     }
     
     public func setFanMode(_ id: Int, mode: Int) {
-        if !self.checkRights() {
-            if !self.ensureRights() {
-                return
+        guard let helper = self.helper(nil) else { return }
+        helper.setFanMode(id: id, mode: mode) { result in
+            if let result, !result.isEmpty {
+                NSLog("set fan mode: \(result)")
             }
         }
-        
-        _ = syncShell("\(self.smc) fan -id \(id) -m \(mode)")
     }
     
-    private func checkRights() -> Bool {
-        do {
-            let attributes = try FileManager.default.attributesOfItem(atPath: self.smc)
-            guard let owner = attributes[FileAttributeKey(rawValue: "NSFileOwnerAccountName")] as? String,
-                  let ownerGroup = attributes[FileAttributeKey(rawValue: "NSFileGroupOwnerAccountName")] as? String,
-                  let permissions = attributes[FileAttributeKey(rawValue: "NSFilePosixPermissions")]  as? Int else {
-                print("some of the smc attributes is missing")
-                return false
-            }
-            
-            if owner == "root" && ownerGroup == "admin" && permissions == 3437 {
-                return true
-            }
-        } catch let error {
-            print("get smc attributes, \(error)")
-            return false
+    public func powermetrics(_ samplers: [String], completion: @escaping (String?) -> Void) {
+        guard let helper = self.helper(nil) else { return }
+        helper.powermetrics(samplers) { result in
+            completion(result)
         }
-        
-        return false
     }
     
-    private func ensureRights() -> Bool {
-        guard let script = NSAppleScript(source: "do shell script \"/usr/sbin/chown root:admin \(self.smc) && /bin/chmod 6555 \(self.smc)\" with administrator privileges") else {
-            return false
-        }
-        
-        var err: NSDictionary? = nil
-        script.executeAndReturnError(&err)
-        if err != nil {
-            print("cannot upgrade owner to root: \(String(describing: err))")
-            return false
-        }
-        
-        return true
+    public func isActive() -> Bool {
+        return self.connection != nil
     }
+    
+    public func checkForUpdate() {
+        let helperURL = Bundle.main.bundleURL.appendingPathComponent("Contents/Library/LaunchServices/eu.exelban.Stats.SMC.Helper")
+        guard let helperBundleInfo = CFBundleCopyInfoDictionaryForURL(helperURL as CFURL) as? [String: Any],
+              let helperVersion = helperBundleInfo["CFBundleShortVersionString"] as? String,
+              let helper = self.helper(nil) else { return }
+        
+        helper.version { installedHelperVersion in
+            guard installedHelperVersion != helperVersion else { return }
+            print("new version of SMC helper is detected, going to update...")
+            self.uninstall(silent: true)
+            self.install { installed in
+                if installed {
+                    print("the new version of SMC helper was successfully installed")
+                } else {
+                    print("error when installing a new version of the SMC helper")
+                }
+            }
+        }
+    }
+    
+    public func install(completion: @escaping (_ installed: Bool) -> Void) {
+        var authRef: AuthorizationRef?
+        var authStatus = AuthorizationCreate(nil, nil, [.preAuthorize], &authRef)
+        
+        guard authStatus == errAuthorizationSuccess else {
+            print("Unable to get a valid empty authorization reference to load Helper daemon")
+            completion(false)
+            return
+        }
+        
+        let authItem = kSMRightBlessPrivilegedHelper.withCString { authorizationString in
+            AuthorizationItem(name: authorizationString, valueLength: 0, value: nil, flags: 0)
+        }
+        
+        let pointer = UnsafeMutablePointer<AuthorizationItem>.allocate(capacity: 1)
+        pointer.initialize(to: authItem)
+        
+        defer {
+            pointer.deinitialize(count: 1)
+            pointer.deallocate()
+        }
+        
+        var authRights = AuthorizationRights(count: 1, items: pointer)
+        
+        let flags: AuthorizationFlags = [.interactionAllowed, .extendRights, .preAuthorize]
+        authStatus = AuthorizationCreate(&authRights, nil, flags, &authRef)
+        
+        guard authStatus == errAuthorizationSuccess else {
+            print("Unable to get a valid loading authorization reference to load Helper daemon")
+            completion(false)
+            return
+        }
+        
+        var error: Unmanaged<CFError>?
+        if SMJobBless(kSMDomainUserLaunchd, "eu.exelban.Stats.SMC.Helper" as CFString, authRef, &error) == false {
+            let blessError = error!.takeRetainedValue() as Error
+            print("Error while installing the Helper: \(blessError.localizedDescription)")
+            completion(false)
+            return
+        }
+        
+        AuthorizationFree(authRef!, [])
+        completion(true)
+    }
+    
+    private func helperConnection() -> NSXPCConnection? {
+        guard self.connection == nil else {
+            return self.connection
+        }
+        
+        let connection = NSXPCConnection(machServiceName: "eu.exelban.Stats.SMC.Helper", options: .privileged)
+        connection.exportedObject = self
+        connection.remoteObjectInterface = NSXPCInterface(with: HelperProtocol.self)
+        connection.invalidationHandler = {
+            self.connection?.invalidationHandler = nil
+            OperationQueue.main.addOperation {
+                self.connection = nil
+            }
+        }
+        
+        self.connection = connection
+        self.connection?.resume()
+        
+        return self.connection
+    }
+    
+    private func helper(_ completion: ((Bool) -> Void)?) -> HelperProtocol? {
+        guard let helper = self.helperConnection() else {
+            completion?(false)
+            return nil
+        }
+        guard let service = helper.remoteObjectProxyWithErrorHandler({ error in
+            print(error)
+        }) as? HelperProtocol else {
+            completion?(false)
+            return nil
+        }
+        
+        service.setSMCPath(Bundle.main.path(forResource: "smc", ofType: nil)!)
+        
+        return service
+    }
+    
+    public func uninstall(silent: Bool = false) {
+        if let count = SMC.shared.getValue("FNum") {
+            for i in 0..<Int(count) {
+                self.setFanMode(i, mode: 0)
+            }
+        }
+        guard let helper = self.helper(nil) else { return }
+        helper.uninstall()
+        if !silent {
+            NotificationCenter.default.post(name: .fanHelperState, object: nil, userInfo: ["state": false])
+        }
+    }
+}
+
+internal func grayscaleImage(_ image: NSImage) -> NSImage? {
+    guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+        return nil
+    }
+    let bitmap = NSBitmapImageRep(cgImage: cgImage)
+    
+    guard let grayscale = bitmap.converting(to: .genericGray, renderingIntent: .default) else {
+        return nil
+    }
+    let greyImage = NSImage(size: image.size)
+    greyImage.addRepresentation(grayscale)
+    
+    return greyImage
+}
+
+public class ViewCopy: CALayer {
+    public init(_ view: NSView) {
+        super.init()
+        
+        guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+        view.cacheDisplay(in: view.bounds, to: bitmap)
+        
+        frame = view.frame
+        contents = bitmap.cgImage
+    }
+    
+    required init?(coder aDecoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
+public class EmptyView: NSStackView {
+    public init(height: CGFloat = 120, isHidden: Bool = false, msg: String) {
+        super.init(frame: NSRect())
+        
+        self.heightAnchor.constraint(equalToConstant: height).isActive = true
+        
+        self.translatesAutoresizingMaskIntoConstraints = true
+        self.orientation = .vertical
+        self.distribution = .fillEqually
+        self.isHidden = isHidden
+        self.identifier = NSUserInterfaceItemIdentifier(rawValue: "emptyView")
+        
+        let textView: NSTextView = NSTextView()
+        textView.heightAnchor.constraint(equalToConstant: (height/2)+6).isActive = true
+        textView.alignment = .center
+        textView.isEditable = false
+        textView.isSelectable = false
+        textView.drawsBackground = false
+        textView.string = msg
+        
+        self.addArrangedSubview(NSView())
+        self.addArrangedSubview(textView)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
+public func saveNSStatusItemPosition(id: String) {
+    let position = Store.shared.int(key: "NSStatusItem Preferred Position \(id)", defaultValue: -1)
+    if position != -1 {
+        Store.shared.set(key: "NSStatusItem Restore Position \(id)", value: position)
+    }
+}
+public func restoreNSStatusItemPosition(id: String) {
+    let prevPosition = Store.shared.int(key: "NSStatusItem Restore Position \(id)", defaultValue: -1)
+    if prevPosition != -1 {
+        Store.shared.set(key: "NSStatusItem Preferred Position \(id)", value: prevPosition)
+        Store.shared.remove("NSStatusItem Restore Position \(id)")
+    }
+}
+
+public class AppIcon: NSView {
+    public static let size: CGSize = CGSize(width: 16, height: 16)
+    
+    public init() {
+        super.init(frame: NSRect(x: 0, y: 3, width: AppIcon.size.width, height: AppIcon.size.height))
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    public override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+        ctx.setShouldAntialias(true)
+        
+        NSColor.textColor.set()
+        NSBezierPath(roundedRect: NSRect(
+            x: 0,
+            y: 0,
+            width: AppIcon.size.width,
+            height: AppIcon.size.height
+        ), xRadius: 4, yRadius: 4).fill()
+        
+        NSColor.controlTextColor.set()
+        NSBezierPath(roundedRect: NSRect(
+            x: 1.5,
+            y: 1.5,
+            width: AppIcon.size.width - 3,
+            height: AppIcon.size.height - 3
+        ), xRadius: 3, yRadius: 3).fill()
+        
+        let lineWidth = 1 / (NSScreen.main?.backingScaleFactor ?? 1) / 2
+        let offset = lineWidth/2
+        let zero = (AppIcon.size.height - 3 + 1.5)/2 + lineWidth
+        let x = 1.5
+        
+        let downloadLine = drawLine(points: [
+            (x+0, zero-offset),
+            (x+1, zero-offset),
+            (x+2, zero-offset-2.5),
+            (x+3, zero-offset-4),
+            (x+4, zero-offset),
+            (x+5, zero-offset-2),
+            (x+6, zero-offset),
+            (x+7, zero-offset),
+            (x+8, zero-offset-2),
+            (x+9, zero-offset),
+            (x+10, zero-offset-4),
+            (x+11, zero-offset-0.5),
+            (x+12, zero-offset)
+        ], color: NSColor.systemBlue, lineWidth: lineWidth)
+        
+        let uploadLine = drawLine(points: [
+            (x+0, zero+offset),
+            (x+1, zero+offset),
+            (x+2, zero+offset+2),
+            (x+3, zero+offset),
+            (x+4, zero+offset),
+            (x+5, zero+offset),
+            (x+6, zero+offset+3),
+            (x+7, zero+offset+3),
+            (x+8, zero+offset),
+            (x+9, zero+offset+1),
+            (x+10, zero+offset+5),
+            (x+11, zero+offset),
+            (x+12, zero+offset)
+        ], color: NSColor.systemRed, lineWidth: lineWidth)
+        
+        ctx.saveGState()
+        drawUnderLine(dirtyRect, path: downloadLine, color: NSColor.systemBlue, x: x, y: zero-offset)
+        ctx.restoreGState()
+        ctx.saveGState()
+        drawUnderLine(dirtyRect, path: uploadLine, color: NSColor.systemRed, x: x, y: zero+offset)
+        ctx.restoreGState()
+    }
+    
+    private func drawLine(points: [(CGFloat, CGFloat)], color: NSColor, lineWidth: CGFloat) -> NSBezierPath {
+        let linePath = NSBezierPath()
+        linePath.move(to: CGPoint(x: points[0].0, y: points[0].1))
+        for i in 1..<points.count {
+            linePath.line(to: CGPoint(x: points[i].0, y: points[i].1))
+        }
+        color.setStroke()
+        linePath.lineWidth = lineWidth
+        linePath.stroke()
+        return linePath
+    }
+    
+    private func drawUnderLine(_ rect: NSRect, path: NSBezierPath, color: NSColor, x: CGFloat, y: CGFloat) {
+        let underLinePath = path.copy() as! NSBezierPath
+        underLinePath.line(to: CGPoint(x: x, y: y))
+        underLinePath.line(to: CGPoint(x: x, y: y))
+        underLinePath.close()
+        underLinePath.addClip()
+        color.withAlphaComponent(0.5).setFill()
+        NSBezierPath(rect: rect).fill()
+    }
+}
+
+public func controlState(_ sender: NSControl) -> Bool {
+    var state: NSControl.StateValue
+    
+    if #available(OSX 10.15, *) {
+        state = sender is NSSwitch ? (sender as! NSSwitch).state : .off
+    } else {
+        state = sender is NSButton ? (sender as! NSButton).state : .off
+    }
+    
+    return state == .on
+}
+
+@available(macOS 11.0, *)
+public func iconFromSymbol(name: String, scale: NSImage.SymbolScale) -> NSImage? {
+    let config = NSImage.SymbolConfiguration(textStyle: .body, scale: scale)
+    if let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil) {
+        return symbol.withSymbolConfiguration(config)
+    }
+    return nil
+}
+
+public func showAlert(_ message: String, _ information: String? = nil, _ style: NSAlert.Style = .informational) {
+    let alert = NSAlert()
+    alert.messageText = message
+    if let information = information {
+        alert.informativeText = information
+    }
+    alert.addButton(withTitle: "OK")
+    alert.alertStyle = style
+    alert.runModal()
 }
